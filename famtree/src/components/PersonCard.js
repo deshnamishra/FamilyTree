@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const PersonCard = ({ person, isSelected, onClick, onEdit, style }) => {
+const PersonCard = ({ person, isSelected, onClick, onEdit, isMobile, style }) => {
   const hasChildren = person.children && person.children.length > 0;
   const initials = person.name.split(' ').map(n => n[0]).slice(0, 2).join('');
   const reportCount = (person.children || []).length;
+  const cardWidth = isMobile ? 120 : 160;
 
   return (
     <motion.div
@@ -26,7 +27,7 @@ const PersonCard = ({ person, isSelected, onClick, onEdit, style }) => {
         whileHover={{ y: -3, boxShadow: '0 6px 20px rgba(0,0,0,0.1)' }}
         transition={{ duration: 0.2 }}
         style={{
-          width: '160px',
+          width: `${cardWidth}px`,
           background: '#fff',
           borderRadius: '10px',
           border: isSelected ? '2px solid #2563eb' : '1px solid #e5e7eb',

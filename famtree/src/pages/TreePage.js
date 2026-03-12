@@ -9,16 +9,28 @@ import AddMemberModal from '../components/AddMemberModal';
 import EditMemberModal from '../components/EditMemberModal';
 import { fetchAllMembers, createMember, updateMember } from '../services/api';
 
-const CANVAS_W = 1800;
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handle = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return width;
+}
 
 function TreePage() {
   const { treeId } = useParams();
   const navigate = useNavigate();
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 768;
+  const CANVAS_W = isMobile ? Math.max(windowWidth * 2, 800) : 1800;
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const familyMap = useMemo(() => createFamilyMap(members), [members]);
 
   const [focusedId, setFocusedId] = useState(null);
@@ -180,15 +192,16 @@ function TreePage() {
       {/* Header */}
       <div style={{
         background: '#fff', borderBottom: '1px solid #e5e7eb',
-        padding: '0 24px', height: '52px',
+        padding: isMobile ? '8px 12px' : '0 24px', height: 'auto', minHeight: '52px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 100,
+        flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '6px' : '0',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
             style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</motion.button>
-          <span style={{ fontSize: '20px' }}>🌳</span>
-          <span style={{ fontWeight: 700, fontSize: '15px', color: '#111' }}>Family Tree</span>
+          <span style={{ fontSize: isMobile ? '16px' : '20px' }}>🌳</span>
+          <span style={{ fontWeight: 700, fontSize: isMobile ? '13px' : '15px', color: '#111' }}>Family Tree</span>
           <span style={{
             padding: '2px 8px', borderRadius: '8px', fontSize: '9px', fontWeight: 600,
             background: usingFallback ? '#fef3c7' : '#d1fae5',
@@ -196,45 +209,59 @@ function TreePage() {
           }}>{usingFallback ? 'Demo' : 'Live'}</span>
         </div>
 
-        {/* Search */}
-        <div style={{ position: 'relative', width: '280px' }}>
-          <input placeholder="Search members..."
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-            onFocus={() => setSearchOpen(true)}
-            onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
-            style={{
-              width: '100%', padding: '7px 14px', borderRadius: '8px',
-              border: '1px solid #e5e7eb', background: '#fafafa',
-              fontSize: '13px', color: '#333', outline: 'none',
-            }}
-          />
-          {searchOpen && searchResults.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0,
-              background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px',
-              border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto',
-            }}>
-              {searchResults.map(p => (
-                <div key={p.id}
-                  onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
-                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
-                  {p.occupation && <span style={{ color: '#9ca3af', marginLeft: '8px' }}>{p.occupation}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Search - hidden on mobile, shown as icon */}
+        {!isMobile && (
+          <div style={{ position: 'relative', width: '280px' }}>
+            <input placeholder="Search members..."
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+              style={{
+                width: '100%', padding: '7px 14px', borderRadius: '8px',
+                border: '1px solid #e5e7eb', background: '#fafafa',
+                fontSize: '13px', color: '#333', outline: 'none',
+              }}
+            />
+            {searchOpen && searchResults.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0,
+                background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px',
+                border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto',
+              }}>
+                {searchResults.map(p => (
+                  <div key={p.id}
+                    onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
+                    style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
+                    {p.occupation && <span style={{ color: '#9ca3af', marginLeft: '8px' }}>{p.occupation}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {focusedPerson && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
+          {focusedPerson && !isMobile && (
             <span style={{ fontSize: '12px', color: '#6b7280' }}>
               Viewing: <strong style={{ color: '#111' }}>{focusedPerson.name}</strong>
             </span>
+          )}
+          {focusedPerson && isMobile && (
+            <span style={{ fontSize: '10px', color: '#6b7280' }}>
+              <strong style={{ color: '#111' }}>{focusedPerson.name}</strong>
+            </span>
+          )}
+          {isMobile && (
+            <motion.button whileTap={{ scale: 0.95 }}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
+              ☰
+            </motion.button>
           )}
           <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             onClick={() => setShowModal(true)}
@@ -252,9 +279,42 @@ function TreePage() {
         </div>
       )}
 
+      {/* Mobile search bar */}
+      {isMobile && (
+        <div style={{ padding: '6px 12px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+          <input placeholder="Search members..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+            style={{
+              width: '100%', padding: '7px 12px', borderRadius: '8px',
+              border: '1px solid #e5e7eb', background: '#fafafa',
+              fontSize: '13px', color: '#333', outline: 'none',
+            }}
+          />
+          {searchOpen && searchResults.length > 0 && (
+            <div style={{
+              position: 'absolute', left: '12px', right: '12px',
+              background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px',
+              border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto',
+            }}>
+              {searchResults.map(p => (
+                <div key={p.id}
+                  onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
+                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
+                >
+                  <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflow: 'auto', position: 'relative', background: '#fafafa' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ flex: 1, overflow: 'auto', position: 'relative', background: '#fafafa', WebkitOverflowScrolling: 'touch' }}>
           {layout.parentOfFocused && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               style={{ position: 'sticky', top: '10px', zIndex: 50, display: 'flex', justifyContent: 'center' }}>
@@ -264,52 +324,74 @@ function TreePage() {
                 title={`Go up to ${familyMap.get(layout.parentOfFocused)?.name}`}>▴</motion.button>
             </motion.div>
           )}
-          <div style={{ width: `${CANVAS_W}px`, minHeight: '600px', position: 'relative', margin: '0 auto', paddingTop: '16px', paddingBottom: '80px' }}>
+          <div style={{ width: `${CANVAS_W}px`, minHeight: isMobile ? '400px' : '600px', position: 'relative', margin: '0 auto', paddingTop: '16px', paddingBottom: '80px' }}>
             <ConnectionLines edges={layout.edges} positions={layout.positions} familyMap={familyMap} />
             <AnimatePresence mode="popLayout">
               {layout.visibleIds.map(id => {
                 const person = familyMap.get(id);
                 const pos = layout.positions[id];
                 if (!person || !pos) return null;
-                return <PersonCard key={id} person={person} isSelected={id === focusedId} onClick={navigateTo} onEdit={openEdit} style={{ left: `${pos.x}px`, top: `${pos.y}px` }} />;
+                return <PersonCard key={id} person={person} isSelected={id === focusedId} onClick={navigateTo} onEdit={openEdit} isMobile={isMobile} style={{ left: `${pos.x}px`, top: `${pos.y}px` }} />;
               })}
             </AnimatePresence>
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div style={{ width: '200px', flexShrink: 0, background: '#fff', borderLeft: '1px solid #e5e7eb', padding: '16px 14px', overflowY: 'auto' }}>
-          <h3 style={{ margin: '0 0 14px', fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hierarchy</h3>
-          {breadcrumbPath.map((item, i) => (
-            <div key={item.id} style={{ marginBottom: '3px' }}>
-              {i > 0 && <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(i - 1) * 10 + 5}px`, height: '12px' }} />}
-              <div onClick={() => navigateTo(item.id)} style={{ paddingLeft: `${i * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: item.id === focusedId ? '#2563eb' : '#d1d5db', flexShrink: 0 }} />
-                <span style={{ color: item.id === focusedId ? '#2563eb' : '#6b7280', fontSize: '11px', fontWeight: item.id === focusedId ? 700 : 500 }}>{item.name}</span>
+        {/* Sidebar - overlay on mobile, fixed on desktop */}
+        {(!isMobile || sidebarOpen) && (
+          <div style={{
+            width: isMobile ? '240px' : '200px',
+            flexShrink: 0,
+            background: '#fff',
+            borderLeft: '1px solid #e5e7eb',
+            padding: '16px 14px',
+            overflowY: 'auto',
+            ...(isMobile ? {
+              position: 'absolute', top: 0, right: 0, bottom: 0,
+              zIndex: 150, boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
+            } : {}),
+          }}>
+            {isMobile && (
+              <button onClick={() => setSidebarOpen(false)}
+                style={{ float: 'right', background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#6b7280', marginBottom: '8px' }}>✕</button>
+            )}
+            <h3 style={{ margin: '0 0 14px', fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hierarchy</h3>
+            {breadcrumbPath.map((item, i) => (
+              <div key={item.id} style={{ marginBottom: '3px' }}>
+                {i > 0 && <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(i - 1) * 10 + 5}px`, height: '12px' }} />}
+                <div onClick={() => { navigateTo(item.id); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${i * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: item.id === focusedId ? '#2563eb' : '#d1d5db', flexShrink: 0 }} />
+                  <span style={{ color: item.id === focusedId ? '#2563eb' : '#6b7280', fontSize: '11px', fontWeight: item.id === focusedId ? 700 : 500 }}>{item.name}</span>
+                </div>
               </div>
-            </div>
-          ))}
-          {(focusedPerson?.children || []).length > 0 && (
-            <>
-              <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(breadcrumbPath.length - 1) * 10 + 5}px`, height: '12px' }} />
-              {focusedPerson.children.map(cid => {
-                const child = familyMap.get(cid);
-                if (!child) return null;
-                return (
-                  <div key={cid} style={{ marginBottom: '3px' }}>
-                    <div onClick={() => navigateTo(cid)} style={{ paddingLeft: `${breadcrumbPath.length * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d1d5db', flexShrink: 0 }} />
-                      <span style={{ color: '#2563eb', fontSize: '10px', fontWeight: 500 }}>{child.name}</span>
+            ))}
+            {(focusedPerson?.children || []).length > 0 && (
+              <>
+                <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(breadcrumbPath.length - 1) * 10 + 5}px`, height: '12px' }} />
+                {focusedPerson.children.map(cid => {
+                  const child = familyMap.get(cid);
+                  if (!child) return null;
+                  return (
+                    <div key={cid} style={{ marginBottom: '3px' }}>
+                      <div onClick={() => { navigateTo(cid); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${breadcrumbPath.length * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d1d5db', flexShrink: 0 }} />
+                        <span style={{ color: '#2563eb', fontSize: '10px', fontWeight: 500 }}>{child.name}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-              <div style={{ marginTop: '12px', padding: '6px', background: '#f9fafb', borderRadius: '6px', textAlign: 'center' }}>
-                <span style={{ color: '#6b7280', fontSize: '10px' }}>{focusedPerson.children.length} children</span>
-              </div>
-            </>
-          )}
-        </div>
+                  );
+                })}
+                <div style={{ marginTop: '12px', padding: '6px', background: '#f9fafb', borderRadius: '6px', textAlign: 'center' }}>
+                  <span style={{ color: '#6b7280', fontSize: '10px' }}>{focusedPerson.children.length} children</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {/* Sidebar overlay backdrop on mobile */}
+        {isMobile && sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 140 }} />
+        )}
       </div>
 
       <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} />
