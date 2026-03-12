@@ -1,0 +1,13 @@
+.person-card {
+  background: #fff;
+  border: 2px solid #333;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.person-card:hover {
+  transform: scale(1.05);
+}

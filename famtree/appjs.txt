@@ -1,0 +1,295 @@
+import React, { useState, useEffect, useMemo } from "react";
+import TreeView from "./components/TreeView";
+import { fetchFamilyData, addFamilyMember } from "./api/familyService";
+import "./App.css";
+
+function App() {
+  const [familyData, setFamilyData] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [error, setError] = useState(null);
+  const [newGender, setNewGender] = useState("other");
+  const [parent1Id, setParent1Id] = useState("");
+  const [parent2Id, setParent2Id] = useState("");
+  const [partnerId, setPartnerId] = useState("");
+  const [dob, setDob] = useState("");
+  const [title, setTitle] = useState("");
+
+
+
+  // Memoized derived data
+  const { selectedMember, familyMembers } = useMemo(() => {
+    const selectedMember = selectedId ? familyData[selectedId] : null;
+    const familyMembers = Object.values(familyData);
+    return { selectedMember, familyMembers };
+  }, [familyData, selectedId]);
+
+  // Load initial data
+  useEffect(() => {
+    const loadData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    const response = await fetchFamilyData();
+    console.log("Raw API response:", response); // Keep this for debugging
+    
+    // Handle paginated response
+    const members = response.data || []; // Extract the array
+    
+    if (!Array.isArray(members)) {
+      throw new Error(`Expected array but got ${typeof members}`);
+    }
+
+    const mapped = members.reduce((acc, member) => {
+      if (!member._id) {
+        console.warn("Family member missing ID:", member);
+        return acc;
+      }
+      
+      return {
+        ...acc,
+        [member._id]: {
+          name: member.name || "Unknown",
+          gender: member.gender || "other",
+          partner: member.partner || null,
+          parents: Array.isArray(member.parents) ? member.parents : [],
+          children: Array.isArray(member.children) ? member.children : [],
+          ...member
+        }
+      };
+    }, {});
+
+    setFamilyData(mapped);
+    
+    // Set default selection if members exist
+    const firstValidId = Object.keys(mapped).find(id => mapped[id]);
+    setSelectedId(firstValidId || null);
+    
+  } catch (err) {
+    console.error("Error loading family data:", err);
+    setError(err.message || "Failed to load family data");
+  } finally {
+    setLoading(false);
+  }
+};
+    
+    loadData();
+  }, []);
+
+  // Ensure selectedId is valid when familyData changes
+  useEffect(() => {
+    if (selectedId && !familyData[selectedId]) {
+      const firstValidId = Object.keys(familyData).find(id => familyData[id]);
+      setSelectedId(firstValidId);
+    }
+  }, [familyData, selectedId]);
+
+  const handleSelect = (id) => {
+    if (familyData[id]) {
+      setSelectedId(id);
+    }
+  };
+
+  const handleAdd = async () => {
+  const name = newMemberName.trim();
+  if (!name) {
+    setError("Name is required");
+    return;
+  }
+
+  const parents = [parent1Id, parent2Id].filter(Boolean);
+
+  try {
+    setError(null);
+    const newMember = await addFamilyMember({
+      name,
+      gender: newGender,
+      parents,
+      partner: partnerId || null,
+      children: [],
+      title: title.trim() || undefined,
+      dateOfBirth: dob || undefined,
+      createdAt: new Date().toISOString()
+    });
+
+    setFamilyData(prev => {
+      const updated = {
+        ...prev,
+        [newMember._id]: {
+          ...newMember,
+          children: [],
+          parents,
+        }
+      };
+
+      parents.forEach(pid => {
+        if (updated[pid]) {
+          updated[pid] = {
+            ...updated[pid],
+            children: [...(updated[pid].children || []), newMember._id]
+          };
+        }
+      });
+
+      return updated;
+    });
+
+    setNewMemberName("");
+    setNewGender("other");
+    setParent1Id("");
+    setParent2Id("");
+    setPartnerId("");
+    setDob("");
+    setTitle("");
+    setSelectedId(newMember._id);
+
+  } catch (err) {
+    console.error("Failed to add member:", err);
+    setError(err.message || "Failed to add family member");
+  }
+};
+
+
+
+  if (loading) {
+    return (
+      <div className="loading">
+        <div className="spinner"></div>
+        <p>Loading family tree...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="error">
+        <h2>Error loading family tree</h2>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>Try Again</button>
+      </div>
+    );
+  }
+
+  if (!selectedMember && Object.keys(familyData).length === 0) {
+  return (
+    <div className="empty-state">
+      <h2>No family members available</h2>
+      <p>The family tree appears to be empty</p>
+      <div className="add-member-form">
+  <h3>Add Family Member</h3>
+  <input
+    value={newMemberName}
+    onChange={(e) => setNewMemberName(e.target.value)}
+    placeholder="Full name"
+  />
+
+  <select value={newGender} onChange={(e) => setNewGender(e.target.value)}>
+    <option value="other">Other</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
+
+  <label>Parent 1 (optional):</label>
+  <select value={parent1Id} onChange={(e) => setParent1Id(e.target.value)}>
+    <option value="">None</option>
+    {familyMembers.map((member) => (
+      <option key={member._id} value={member._id}>
+        {member.name}
+      </option>
+    ))}
+  </select>
+
+  <label>Parent 2 (optional):</label>
+  <select value={parent2Id} onChange={(e) => setParent2Id(e.target.value)}>
+    <option value="">None</option>
+    {familyMembers.map((member) => (
+      <option key={member._id} value={member._id}>
+        {member.name}
+      </option>
+    ))}
+  </select>
+
+  <button onClick={handleAdd}>Add Member</button>
+  {error && <div className="error-message">{error}</div>}
+</div>
+    </div>
+  );
+}
+
+
+  return (
+    <div className="app">
+      <header className="app-header">
+        <h1>Interactive Family Tree</h1>
+        <div className="breadcrumb">
+          <span>Viewing:</span>
+          <span className="current-person">{selectedMember.name}</span>
+          {selectedMember.title && (
+            <span className="person-role">({selectedMember.title})</span>
+          )}
+        </div>
+      </header>
+
+      <main className="app-main">
+        <TreeView 
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          familyData={familyData}
+        />
+
+        <div className="add-member">
+          <input
+              value={newMemberName}
+              onChange={(e) => setNewMemberName(e.target.value)}
+              placeholder="Full name"
+            />
+
+            <select value={newGender} onChange={(e) => setNewGender(e.target.value)}>
+              <option value="other">Other</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+
+            <label>Partner (optional):</label>
+            <select value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+              <option value="">None</option>
+              {familyMembers.map((member) => (
+                <option key={member._id} value={member._id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+
+            <label>Date of Birth:</label>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+            />
+
+            <label>Title/Role (optional):</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Grandfather, Aunt"
+            />
+
+          <button 
+            aria-label="Add new family member"
+            onClick={handleAdd}
+          >
+            Add Member
+          </button>
+          {error && <div className="error-message">{error}</div>}
+        </div>
+      </main>
+
+      <footer className="app-footer">
+        <p>Click on any family member to view their genealogical connections</p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;

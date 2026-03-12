@@ -1,0 +1,880 @@
+import React, { useState, useEffect, useMemo } from "react";
+import "./TreePage.css";
+
+// Mock API service
+const mockFamilyService = {
+  fetchFamilyMembers: async () => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return {
+      data: [
+        {
+          _id: 'person-1',
+          name: 'Robert Smith',
+          gender: 'male',
+          title: 'Grandfather',
+          dateOfBirth: '1940-05-15',
+          parents: [],
+          children: ['person-2', 'person-3'],
+          partner: 'person-8',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-8',
+          name: 'Margaret Smith',
+          gender: 'female',
+          title: 'Grandmother',
+          dateOfBirth: '1942-03-20',
+          parents: [],
+          children: ['person-2', 'person-3'],
+          partner: 'person-1',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-2',
+          name: 'John Smith',
+          gender: 'male',
+          title: 'Father',
+          dateOfBirth: '1970-03-22',
+          parents: ['person-1', 'person-8'],
+          children: ['person-5', 'person-6'],
+          partner: 'person-4',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-3',
+          name: 'Mary Johnson',
+          gender: 'female',
+          title: 'Aunt',
+          dateOfBirth: '1972-08-10',
+          parents: ['person-1', 'person-8'],
+          children: ['person-7'],
+          partner: 'person-9',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-9',
+          name: 'David Johnson',
+          gender: 'male',
+          title: 'Uncle',
+          dateOfBirth: '1970-11-15',
+          parents: [],
+          children: ['person-7'],
+          partner: 'person-3',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-4',
+          name: 'Jane Smith',
+          gender: 'female',
+          title: 'Mother',
+          dateOfBirth: '1973-12-05',
+          parents: [],
+          children: ['person-5', 'person-6'],
+          partner: 'person-2',
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-5',
+          name: 'Alice Smith',
+          gender: 'female',
+          title: 'Daughter',
+          dateOfBirth: '2000-01-15',
+          parents: ['person-2', 'person-4'],
+          children: [],
+          partner: null,
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-6',
+          name: 'Bob Smith',
+          gender: 'male',
+          title: 'Son',
+          dateOfBirth: '2002-06-20',
+          parents: ['person-2', 'person-4'],
+          children: [],
+          partner: null,
+          createdAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          _id: 'person-7',
+          name: 'Emma Johnson',
+          gender: 'female',
+          title: 'Cousin',
+          dateOfBirth: '1998-09-12',
+          parents: ['person-3', 'person-9'],
+          children: [],
+          partner: null,
+          createdAt: '2024-01-01T00:00:00.000Z'
+        }
+      ]
+    };
+  }
+};
+
+const PersonCard = ({ person, onSelect, isSelected, variant = 'default', scale = 1 }) => {
+  const age = new Date().getFullYear() - person.birthYear;
+
+  const getCardClasses = () => {
+    let classes = "person-card";
+    
+    if (isSelected) {
+      classes += " selected";
+    }
+    
+    if (variant === 'selected') {
+      classes += " selected-highlight";
+    }
+    
+    return classes;
+  };
+
+  return (
+    <div
+      className={getCardClasses()}
+      onClick={() => onSelect(person._id)}
+      style={{ 
+        transform: `scale(${scale})`,
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+    >
+      <div className="person-card-header">
+        <div className="person-name">{person.name}</div>
+        <div className="person-title">{person.title}</div>
+      </div>
+      <div className="person-details">
+        <div>Born {person.birthYear}</div>
+        <div>Age {age}</div>
+      </div>
+    </div>
+  );
+};
+
+const TreeView = ({ selectedId, onSelect, familyData }) => {
+  const [transitioning, setTransitioning] = useState(false);
+  
+  // Build family tree structure
+  const treeStructure = useMemo(() => {
+    const couples = new Map();
+    const processed = new Set();
+    const tree = [];
+    
+    // Helper function to find generation level
+    const getGenerationLevel = (personId, visited = new Set()) => {
+      if (visited.has(personId) || !familyData[personId]) return 0;
+      
+      visited.add(personId);
+      const person = familyData[personId];
+      
+      if (!person.parentIds || person.parentIds.length === 0) {
+        return 0; // Root generation
+      }
+      
+      const parentLevels = person.parentIds.map(parentId => 
+        getGenerationLevel(parentId, new Set(visited))
+      );
+      
+      return Math.max(...parentLevels) + 1;
+    };
+    
+    // Create couples and organize by generation
+    Object.values(familyData).forEach(person => {
+      if (processed.has(person._id)) return;
+      
+      const generation = getGenerationLevel(person._id);
+      const coupleKey = person.partnerId ? 
+        [person._id, person.partnerId].sort().join('-') : 
+        person._id;
+      
+      if (!couples.has(coupleKey)) {
+        const couple = {
+          id: coupleKey,
+          generation,
+          members: [person],
+          children: [],
+          parents: person.parentIds || []
+        };
+        
+        if (person.partnerId && familyData[person.partnerId]) {
+          couple.members.push(familyData[person.partnerId]);
+          processed.add(person.partnerId);
+        }
+        
+        // Get all children of this couple
+        const allChildren = new Set();
+        couple.members.forEach(member => {
+          if (member.childIds) {
+            member.childIds.forEach(childId => allChildren.add(childId));
+          }
+        });
+        
+        couple.children = Array.from(allChildren).map(childId => familyData[childId]).filter(Boolean);
+        
+        couples.set(coupleKey, couple);
+      }
+      
+      processed.add(person._id);
+    });
+    
+    // Convert to array and sort by generation
+    return Array.from(couples.values()).sort((a, b) => a.generation - b.generation);
+  }, [familyData]);
+  
+  // Group by generation
+  const generationGroups = useMemo(() => {
+    const groups = {};
+    treeStructure.forEach(couple => {
+      if (!groups[couple.generation]) {
+        groups[couple.generation] = [];
+      }
+      groups[couple.generation].push(couple);
+    });
+    return groups;
+  }, [treeStructure]);
+
+  const handleSelect = (personId) => {
+    if (personId === selectedId) return;
+    
+    setTransitioning(true);
+    
+    setTimeout(() => {
+      onSelect(personId);
+      setTransitioning(false);
+    }, 200);
+  };
+
+  const renderCouple = (couple) => {
+    const isAnySelected = couple.members.some(member => member._id === selectedId);
+    
+    return (
+      <div 
+        key={couple.id}
+        className={`couple-container ${isAnySelected ? 'couple-selected' : ''}`}
+        style={{
+          transform: transitioning && isAnySelected ? 'translateY(-5px)' : 'translateY(0)',
+          opacity: transitioning && isAnySelected ? 0.8 : 1,
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      >
+        <div className="couple-members">
+          {couple.members.map((member, index) => {
+            const isSelected = member._id === selectedId;
+            const scale = isSelected ? 1.15 : 1;
+            
+            return (
+              <div key={member._id} className="member-wrapper">
+                <PersonCard
+                  person={member}
+                  onSelect={handleSelect}
+                  isSelected={isSelected}
+                  variant={isSelected ? 'selected' : 'default'}
+                  scale={scale}
+                />
+                {index === 0 && couple.members.length > 1 && (
+                  <div className="partnership-connector">
+                    {/* <div className="heart-connector">💕</div> */}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Children connector */}
+        {couple.children.length > 0 && (
+          <div className="children-connector">
+            <div className="vertical-line"></div>
+            <div className="horizontal-line"></div>
+            <div className="children-branches">
+              {couple.children.map((child, index) => (
+                <div key={child._id} className="child-branch">
+                  <div className="branch-line"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderChildren = (couple) => {
+    if (couple.children.length === 0) return null;
+    
+    return (
+      <div key={`children-${couple.id}`} className="children-row">
+        {couple.children.map(child => {
+          const isSelected = child._id === selectedId;
+          const scale = isSelected ? 1.15 : 1;
+          
+          return (
+            <div key={child._id} className="child-container">
+              <PersonCard
+                person={child}
+                onSelect={handleSelect}
+                isSelected={isSelected}
+                variant={isSelected ? 'selected' : 'default'}
+                scale={scale}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const sortedGenerations = Object.keys(generationGroups).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div className="hierarchical-tree-view">
+      <div className="tree-header">
+        <h2 className="tree-title">Family Tree</h2>
+        <p className="tree-subtitle">Click any family member to focus on them</p>
+      </div>
+      
+      <div className="tree-container">
+        {sortedGenerations.map(generation => (
+          <div key={generation} className="generation-level">
+            <div className="generation-header">
+              <span className="generation-label">Generation {generation}</span>
+            </div>
+            
+            <div className="couples-row">
+              {generationGroups[generation].map(couple => renderCouple(couple))}
+            </div>
+            
+            {/* Render children in the next level */}
+            <div className="children-level">
+              {generationGroups[generation].map(couple => renderChildren(couple))}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {selectedId && (
+        <div className="selected-member-info">
+          <div className="info-panel">
+            <h3 className="info-title">👤 {familyData[selectedId]?.name}</h3>
+            <div className="member-details">
+              <div className="detail-item">
+                <span className="detail-label">Title:</span>
+                <span className="detail-value">{familyData[selectedId]?.title || 'No title'}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Age:</span>
+                <span className="detail-value">{new Date().getFullYear() - familyData[selectedId]?.birthYear}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Children:</span>
+                <span className="detail-value">{familyData[selectedId]?.childIds?.length || 0}</span>
+              </div>
+              {familyData[selectedId]?.partnerId && (
+                <div className="detail-item">
+                  <span className="detail-label">Partner:</span>
+                  <span className="detail-value">{familyData[familyData[selectedId].partnerId]?.name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+function TreePage() {
+  const [familyData, setFamilyData] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const extractBirthYear = (dateOfBirth) => {
+    if (!dateOfBirth) return new Date().getFullYear() - 25;
+    const date = new Date(dateOfBirth);
+    return date.getFullYear();
+  };
+
+  const transformMemberData = (member) => {
+    return {
+      _id: member._id,
+      name: member.name || "Unknown",
+      title: member.title || "",
+      gender: member.gender || "other",
+      birthYear: extractBirthYear(member.dateOfBirth),
+      dateOfBirth: member.dateOfBirth,
+      parentIds: Array.isArray(member.parents) ? member.parents : [],
+      childIds: Array.isArray(member.children) ? member.children : [],
+      partnerId: member.partner || null,
+      parents: Array.isArray(member.parents) ? member.parents : [],
+      children: Array.isArray(member.children) ? member.children : [],
+      partner: member.partner || null,
+      createdAt: member.createdAt
+    };
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await mockFamilyService.fetchFamilyMembers();
+        const members = response.data || [];
+
+        const mapped = members.reduce((acc, member) => {
+          if (!member._id) return acc;
+          return {
+            ...acc,
+            [member._id]: transformMemberData(member)
+          };
+        }, {});
+
+        setFamilyData(mapped);
+        const firstValidId = Object.keys(mapped)[0] || null;
+        setSelectedId(firstValidId);
+      } catch (err) {
+        console.error("Error loading family data:", err);
+        setError(err.message || "Failed to load family data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleSelect = (id) => {
+    if (familyData[id]) setSelectedId(id);
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading family tree...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="error-container">
+        <h2 className="error-title">Error loading family tree</h2>
+        <p className="error-message">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="error-retry-button"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tree-page">
+      <header className="page-header">
+        <div className="header-content">
+          <h1 className="header-title">Family Tree</h1>
+          {selectedId && familyData[selectedId] && (
+            <div className="viewing-info">
+              Currently viewing: <strong className="current-member-name">{familyData[selectedId].name}</strong>
+              {familyData[selectedId].title && <span> ({familyData[selectedId].title})</span>}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main className="main-content">
+        <TreeView 
+          selectedId={selectedId} 
+          onSelect={handleSelect} 
+          familyData={familyData} 
+        />
+      </main>
+    </div>
+  );
+}
+
+export default TreePage;
+
+=================================================================
+/* TreePage.css */
+
+/* Base styles */
+.tree-page {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.page-header {
+  background-color: white;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 90rem;
+  margin: 0 auto;
+}
+
+.header-title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.viewing-info {
+  color: #6b7280;
+}
+
+.current-member-name {
+  color: #3b82f6;
+}
+
+/* Loading styles */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid #3b82f6;
+  width: 3rem;
+  height: 3rem;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+/* Error styles */
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  flex-direction: column;
+  background-color: #fef2f2;
+  padding: 2rem;
+}
+
+.error-title {
+  color: #b91c1c;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  color: #b91c1c;
+  margin-bottom: 1rem;
+}
+
+.error-retry-button {
+  padding: 0.5rem 1rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.error-retry-button:hover {
+  background-color: #dc2626;
+}
+
+/* Tree View styles */
+.hierarchical-tree-view {
+  background: linear-gradient(135deg, #e0f2fe 0%, #fae8ff 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.tree-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.tree-title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.tree-subtitle {
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.tree-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  min-width: 800px;
+}
+
+.generation-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.generation-header {
+  margin-bottom: 1rem;
+}
+
+.generation-label {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.couples-row {
+  display: flex;
+  justify-content: center;
+  gap: 4rem;
+  flex-wrap: wrap;
+}
+
+.couple-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.couple-selected {
+  z-index: 10;
+}
+
+.couple-members {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.member-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.partnership-connector {
+  display: flex;
+  align-items: center;
+  margin: 0 0.5rem;
+}
+
+/* .heart-connector {
+  font-size: 1.2rem;
+  animation: pulse 2s infinite;
+} */
+
+.children-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.vertical-line {
+  width: 2px;
+  height: 2rem;
+  background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+  margin-bottom: 0.5rem;
+}
+
+.horizontal-line {
+  height: 2px;
+  width: 200px;
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  position: relative;
+}
+
+.children-branches {
+  display: flex;
+  justify-content: space-around;
+  width: 200px;
+  margin-top: -1px;
+}
+
+.child-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.branch-line {
+  width: 2px;
+  height: 1.5rem;
+  background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+}
+
+.children-level {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.children-row {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.child-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Person Card styles */
+.person-card {
+  border: 2px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: white;
+  min-width: 160px;
+  max-width: 200px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.person-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.person-card.selected {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
+  transform: translateY(-5px);
+}
+
+.person-card.selected-highlight {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.4);
+}
+
+.person-card-header {
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.person-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.person-title {
+  font-size: 0.875rem;
+  color: #4b5563;
+  font-style: italic;
+}
+
+.person-details {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Selected Member Info styles */
+.selected-member-info {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.info-panel {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  min-width: 300px;
+}
+
+.info-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.member-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.detail-value {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 0.875rem;
+}
+
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .tree-container {
+    min-width: 100%;
+  }
+  
+  .couples-row {
+    gap: 2rem;
+  }
+  
+  .children-row {
+    gap: 1rem;
+  }
+  
+  .person-card {
+    min-width: 140px;
+  }
+}
