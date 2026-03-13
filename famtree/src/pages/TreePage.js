@@ -7,7 +7,7 @@ import PersonCard from '../components/PersonCard';
 import ConnectionLines from '../components/ConnectionLines';
 import AddMemberModal from '../components/AddMemberModal';
 import EditMemberModal from '../components/EditMemberModal';
-import { fetchAllMembers, createMember, updateMember } from '../services/api';
+import { fetchAllMembers, createMember, updateMember, deleteMember } from '../services/api';
 
 function useWindowWidth() {
   const [width, setWidth] = useState(window.innerWidth);
@@ -140,6 +140,59 @@ function TreePage() {
     }
   }, [usingFallback, treeId]);
 
+  const handleDeleteMember = useCallback(async (id) => {
+    const person = familyMap.get(id);
+    if (!person) return;
+    const ok = window.confirm(`Delete "${person.name}"? This cannot be undone.`);
+    if (!ok) return;
+
+    if (usingFallback) {
+      setMembers(prev => {
+        const next = prev
+          .filter(m => m.id !== id)
+          .map(m => ({
+            ...m,
+            spouse: m.spouse === id ? null : m.spouse,
+            parents: (m.parents || []).filter(pid => pid !== id),
+            children: (m.children || []).filter(cid => cid !== id),
+          }));
+
+        if (focusedId === id) {
+          const fallbackFocus =
+            next.find(m => (m.parents || []).length === 0)?.id ||
+            next[0]?.id ||
+            null;
+          setFocusedId(fallbackFocus);
+        }
+
+        return next;
+      });
+      setShowEditModal(false);
+      setEditingMember(null);
+      return;
+    }
+
+    try {
+      await deleteMember(id);
+      const refreshed = await fetchAllMembers(treeId);
+      setMembers(refreshed);
+
+      if (focusedId === id) {
+        const fallbackFocus =
+          refreshed.find(m => (m.parents || []).length === 0)?.id ||
+          refreshed[0]?.id ||
+          null;
+        setFocusedId(fallbackFocus);
+      }
+
+      setShowEditModal(false);
+      setEditingMember(null);
+    } catch (err) {
+      console.error('Failed to delete member:', err);
+      alert('Failed to delete member.');
+    }
+  }, [usingFallback, treeId, focusedId, familyMap]);
+
   const openEdit = useCallback((person) => {
     setEditingMember(person);
     setShowEditModal(true);
@@ -180,7 +233,7 @@ function TreePage() {
           </motion.div>
         </div>
         <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} />
-        {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} person={editingMember} allMembers={members} />}
+        {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} />}
       </div>
     );
   }
@@ -395,7 +448,7 @@ function TreePage() {
       </div>
 
       <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} />
-      {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} person={editingMember} allMembers={members} />}
+      {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} />}
     </div>
   );
 }

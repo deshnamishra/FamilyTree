@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const GENDERS = ['male', 'female', 'other'];
 
-const EditMemberModal = ({ isOpen, onClose, onUpdate, person, allMembers }) => {
+const EditMemberModal = ({ isOpen, onClose, onUpdate, onDelete, person, allMembers }) => {
     const [form, setForm] = useState({
         name: '', gender: 'other', birthYear: '', occupation: '', photo: '', photoFile: null,
         parents: [], spouse: null, children: []
@@ -30,6 +30,11 @@ const EditMemberModal = ({ isOpen, onClose, onUpdate, person, allMembers }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         onUpdate(person.id, form);
+    };
+
+    const handleDelete = () => {
+        if (!person?.id) return;
+        onDelete?.(person.id);
     };
 
     const label = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' };
@@ -88,12 +93,21 @@ const EditMemberModal = ({ isOpen, onClose, onUpdate, person, allMembers }) => {
                                     <Chips label="Spouse" options={allMembers.filter(m => m.id !== person.id)} value={form.spouse} onChange={v => set('spouse', v)} />
                                     <Chips label="Children" options={allMembers.filter(m => m.id !== person.id)} value={form.children} onChange={v => set('children', v)} multi />
 
-                                    <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                        style={{
-                                            marginTop: '4px', marginBottom: '10px', padding: '10px', borderRadius: '8px',
-                                            background: '#2563eb', border: 'none', color: '#fff',
-                                            fontWeight: 600, fontSize: '13px', cursor: 'pointer',
-                                        }}>Save Changes</motion.button>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px', marginBottom: '10px' }}>
+                                        <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                            onClick={handleDelete}
+                                            style={{
+                                                padding: '10px', borderRadius: '8px',
+                                                background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c',
+                                                fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                                            }}>Delete Member</motion.button>
+                                        <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                            style={{
+                                                padding: '10px', borderRadius: '8px',
+                                                background: '#2563eb', border: 'none', color: '#fff',
+                                                fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                                            }}>Save Changes</motion.button>
+                                    </div>
                                 </form>
                             </div>
                         </motion.div>
