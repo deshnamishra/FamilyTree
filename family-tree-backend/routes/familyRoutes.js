@@ -100,6 +100,11 @@ const validateMember = (member) => {
     errors.push("Valid Tree ID is required");
   }
 
+  // Validate linkedTreeId (optional)
+  if (member.linkedTreeId && !isValidObjectId(member.linkedTreeId)) {
+    errors.push("Invalid linked tree ID format");
+  }
+
   return errors;
 };
 

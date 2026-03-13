@@ -45,12 +45,14 @@ const Chips = ({ label: lbl, options, value, onChange, multi }) => (
     </div>
 );
 
-const AddMemberModal = ({ isOpen, onClose, onAdd, allMembers }) => {
+const AddMemberModal = ({ isOpen, onClose, onAdd, allMembers, allTrees = [], currentTreeId = null }) => {
     const [form, setForm] = useState({
         name: '', gender: 'male', birthYear: '', occupation: '', photo: '', photoFile: null,
-        parents: [], spouse: null, children: [],
+        parents: [], spouse: null, children: [], linkedTreeId: '',
     });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const spouseOptions = allMembers.filter(m => !m.spouse || m.id === form.spouse);
+    const treeOptions = allTrees.filter(t => t?._id && t._id !== currentTreeId);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -62,8 +64,9 @@ const AddMemberModal = ({ isOpen, onClose, onAdd, allMembers }) => {
             photo: form.photo.trim() || (form.photoFile ? '' : `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(form.name)}&backgroundColor=b6e3f4`),
             photoFile: form.photoFile,
             parents: form.parents, spouse: form.spouse, children: form.children,
+            linkedTreeId: form.linkedTreeId || null,
         });
-        setForm({ name: '', gender: 'male', birthYear: '', occupation: '', photo: '', photoFile: null, parents: [], spouse: null, children: [] });
+        setForm({ name: '', gender: 'male', birthYear: '', occupation: '', photo: '', photoFile: null, parents: [], spouse: null, children: [], linkedTreeId: '' });
         onClose();
     };
 
@@ -111,6 +114,12 @@ const AddMemberModal = ({ isOpen, onClose, onAdd, allMembers }) => {
                                         <div><span style={label}>Birth Year</span><input style={field} type="number" min="1800" placeholder="1990" value={form.birthYear} onChange={e => set('birthYear', e.target.value)} /></div>
                                     </div>
                                     <div><span style={label}>Occupation</span><input style={field} placeholder="e.g. Teacher" value={form.occupation} onChange={e => set('occupation', e.target.value)} /></div>
+                                    <div><span style={label}>Linked Family Tree (optional)</span>
+                                        <select style={{ ...field, appearance: 'none' }} value={form.linkedTreeId} onChange={e => set('linkedTreeId', e.target.value)}>
+                                            <option value="">None</option>
+                                            {treeOptions.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                                        </select>
+                                    </div>
 
                                     <div>
                                         <span style={label}>Photo</span>
@@ -127,7 +136,7 @@ const AddMemberModal = ({ isOpen, onClose, onAdd, allMembers }) => {
                                     </div>
 
                                     <Chips label="Parents" options={allMembers} value={form.parents} onChange={v => set('parents', v)} multi />
-                                    <Chips label="Spouse" options={allMembers} value={form.spouse} onChange={v => set('spouse', v)} />
+                                    <Chips label="Spouse" options={spouseOptions} value={form.spouse} onChange={v => set('spouse', v)} />
                                     <Chips label="Children" options={allMembers} value={form.children} onChange={v => set('children', v)} multi />
                                     <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                         style={{

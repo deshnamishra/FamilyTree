@@ -7,6 +7,11 @@ const familyMemberSchema = new mongoose.Schema({
     required: [true, 'Tree ID is required'],
     index: true,
   },
+  linkedTreeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FamilyTree',
+    default: null,
+  },
   name: {
     type: String,
     required: [true, 'Name is required'],
@@ -56,9 +61,13 @@ const familyMemberSchema = new mongoose.Schema({
     validate: {
       validator: async function (partnerId) {
         if (!partnerId) return true;
-        if (partnerId.equals(this._id)) return false; // Can't partner with self
+        if (this && this._id && partnerId.equals(this._id)) return false; // Can't partner with self
         const partner = await mongoose.model('FamilyMember').findById(partnerId);
-        return partner && (!partner.partner || partner.partner.equals(this._id));
+        if (!partner) return false;
+        if (!partner.partner) return true;
+        // During query-based updates, document context may not exist.
+        if (!this || !this._id) return true;
+        return partner.partner.equals(this._id);
       },
       message: 'Invalid partner relationship'
     }

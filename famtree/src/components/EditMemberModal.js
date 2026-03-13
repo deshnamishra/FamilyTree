@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const GENDERS = ['male', 'female', 'other'];
 
-const EditMemberModal = ({ isOpen, onClose, onUpdate, onDelete, person, allMembers }) => {
+const EditMemberModal = ({ isOpen, onClose, onUpdate, onDelete, person, allMembers, allTrees = [], currentTreeId = null }) => {
     const [form, setForm] = useState({
         name: '', gender: 'other', birthYear: '', occupation: '', photo: '', photoFile: null,
-        parents: [], spouse: null, children: []
+        parents: [], spouse: null, children: [], linkedTreeId: ''
     });
 
     useEffect(() => {
@@ -20,12 +20,15 @@ const EditMemberModal = ({ isOpen, onClose, onUpdate, onDelete, person, allMembe
                 photoFile: null,
                 parents: person.parents || [],
                 spouse: person.spouse || null,
-                children: person.children || []
+                children: person.children || [],
+                linkedTreeId: person.linkedTreeId || ''
             });
         }
     }, [person]);
 
     const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+    const spouseOptions = allMembers.filter(m => m.id !== person?.id && (!m.spouse || m.id === form.spouse));
+    const treeOptions = allTrees.filter(t => t?._id && t._id !== currentTreeId);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -88,9 +91,15 @@ const EditMemberModal = ({ isOpen, onClose, onUpdate, onDelete, person, allMembe
                                     </div>
                                     <div><span style={label}>Occupation</span><input style={field} placeholder="e.g. Teacher" value={form.occupation} onChange={e => set('occupation', e.target.value)} /></div>
                                     <div><span style={label}>Photo URL</span><input style={field} placeholder="https://..." value={form.photo} onChange={e => set('photo', e.target.value)} /></div>
+                                    <div><span style={label}>Linked Family Tree (optional)</span>
+                                        <select style={{ ...field, appearance: 'none' }} value={form.linkedTreeId} onChange={e => set('linkedTreeId', e.target.value)}>
+                                            <option value="">None</option>
+                                            {treeOptions.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                                        </select>
+                                    </div>
 
                                     <Chips label="Parents" options={allMembers.filter(m => m.id !== person.id)} value={form.parents} onChange={v => set('parents', v)} multi />
-                                    <Chips label="Spouse" options={allMembers.filter(m => m.id !== person.id)} value={form.spouse} onChange={v => set('spouse', v)} />
+                                    <Chips label="Spouse" options={spouseOptions} value={form.spouse} onChange={v => set('spouse', v)} />
                                     <Chips label="Children" options={allMembers.filter(m => m.id !== person.id)} value={form.children} onChange={v => set('children', v)} multi />
 
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px', marginBottom: '10px' }}>

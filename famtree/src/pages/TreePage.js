@@ -7,7 +7,7 @@ import PersonCard from '../components/PersonCard';
 import ConnectionLines from '../components/ConnectionLines';
 import AddMemberModal from '../components/AddMemberModal';
 import EditMemberModal from '../components/EditMemberModal';
-import { fetchAllMembers, createMember, updateMember, deleteMember } from '../services/api';
+import { fetchAllMembers, createMember, updateMember, deleteMember, fetchAllTrees } from '../services/api';
 
 function useWindowWidth() {
   const [width, setWidth] = useState(window.innerWidth);
@@ -27,6 +27,7 @@ function TreePage() {
   const CANVAS_W = isMobile ? Math.max(windowWidth * 2, 800) : 1800;
 
   const [members, setMembers] = useState([]);
+  const [allTrees, setAllTrees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [usingFallback, setUsingFallback] = useState(false);
@@ -72,13 +73,35 @@ function TreePage() {
     return () => { cancelled = true; };
   }, [treeId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTrees() {
+      try {
+        const trees = await fetchAllTrees();
+        if (!cancelled) setAllTrees(Array.isArray(trees) ? trees : []);
+      } catch {
+        if (!cancelled) setAllTrees([]);
+      }
+    }
+    loadTrees();
+    return () => { cancelled = true; };
+  }, []);
+
   const layout = useMemo(
     () => focusedId ? computeFocusedLayout(focusedId, familyMap, CANVAS_W) : { positions: {}, edges: [], visibleIds: [], parentOfFocused: null },
     [focusedId, familyMap]
   );
   const focusedPerson = focusedId ? familyMap.get(focusedId) : null;
 
-  const navigateTo = useCallback((id) => { if (id !== focusedId) setFocusedId(id); }, [focusedId]);
+  const navigateTo = useCallback((id) => {
+    const person = familyMap.get(id);
+    if (!person) return;
+    if (person.linkedTreeId && person.linkedTreeId !== treeId) {
+      navigate(`/tree/${person.linkedTreeId}`);
+      return;
+    }
+    if (id !== focusedId) setFocusedId(id);
+  }, [focusedId, familyMap, treeId, navigate]);
   const navigateUp = useCallback(() => { if (layout.parentOfFocused) setFocusedId(layout.parentOfFocused); }, [layout.parentOfFocused]);
 
   const breadcrumbPath = useMemo(() => {
@@ -139,7 +162,10 @@ function TreePage() {
       setShowEditModal(false);
     } catch (err) {
       console.error('Failed to update member:', err);
-      alert('Failed to update member.');
+      const details = err?.response?.data?.details;
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to update member.';
+      const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
+      alert(detailText ? `${message}\n${detailText}` : message);
     }
   }, [usingFallback, treeId]);
 
@@ -235,8 +261,8 @@ function TreePage() {
             </motion.button>
           </motion.div>
         </div>
-        <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} />
-        {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} />}
+        <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
+        {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
       </div>
     );
   }
@@ -450,8 +476,8 @@ function TreePage() {
         )}
       </div>
 
-      <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} />
-      {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} />}
+      <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
+      {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
     </div>
   );
 }

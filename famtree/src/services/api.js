@@ -23,6 +23,7 @@ function toFrontend(doc) {
         parents: (doc.parents || []).map(p => (typeof p === 'object' ? p._id : p)),
         children: (doc.children || []).map(c => (typeof c === 'object' ? c._id : c)),
         treeId: doc.treeId || null,
+        linkedTreeId: (typeof doc.linkedTreeId === 'object' && doc.linkedTreeId?._id) ? doc.linkedTreeId._id : (doc.linkedTreeId || null),
     };
 }
 
@@ -36,6 +37,9 @@ function toBackend(data) {
     if (data.spouse) body.partner = data.spouse;
     if (data.parents?.length > 0) body.parents = data.parents;
     if (data.children?.length > 0) body.children = data.children;
+    if (Object.prototype.hasOwnProperty.call(data, 'linkedTreeId')) {
+        body.linkedTreeId = data.linkedTreeId || null;
+    }
     return body;
 }
 
