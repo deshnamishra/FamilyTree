@@ -178,46 +178,64 @@ router.post("/", upload.single('photoFile'), async (req, res) => {
     }
 
     // Check if parents exist
-    if (req.body.parents?.length > 0) {
+    if (parsedBody.parents?.length > 0) {
       const parentsExist = await FamilyMember.countDocuments({
-        _id: { $in: req.body.parents }
+        _id: { $in: parsedBody.parents }
       });
-      if (parentsExist !== req.body.parents.length) {
+      if (parentsExist !== parsedBody.parents.length) {
         return res.status(400).json({ error: "One or more parents not found" });
       }
     }
 
+    // Check if children exist
+    if (parsedBody.children?.length > 0) {
+      const childrenExist = await FamilyMember.countDocuments({
+        _id: { $in: parsedBody.children }
+      });
+      if (childrenExist !== parsedBody.children.length) {
+        return res.status(400).json({ error: "One or more children not found" });
+      }
+    }
+
+    // Check if partner exists
+    if (parsedBody.partner) {
+      const partnerExists = await FamilyMember.exists({ _id: parsedBody.partner });
+      if (!partnerExists) {
+        return res.status(400).json({ error: "Partner not found" });
+      }
+    }
+
     // Create member
-    const newMember = await FamilyMember.create(req.body);
+    const newMember = await FamilyMember.create(parsedBody);
     console.log('[POST /api/family] Created member:', newMember._id);
 
     // --- Wire Reciprocal Relationships ---
     const relationshipUpdates = [];
 
     // 1. If parents provided, add this member to those parents' children array
-    if (req.body.parents?.length > 0) {
+    if (parsedBody.parents?.length > 0) {
       relationshipUpdates.push(
         FamilyMember.updateMany(
-          { _id: { $in: req.body.parents } },
+          { _id: { $in: parsedBody.parents } },
           { $addToSet: { children: newMember._id } }
         )
       );
     }
 
     // 2. If children provided, add this member to those children's parents array
-    if (req.body.children?.length > 0) {
+    if (parsedBody.children?.length > 0) {
       relationshipUpdates.push(
         FamilyMember.updateMany(
-          { _id: { $in: req.body.children } },
+          { _id: { $in: parsedBody.children } },
           { $addToSet: { parents: newMember._id } }
         )
       );
     }
 
     // 3. If partner provided, set this member as that partner's partner
-    if (req.body.partner) {
+    if (parsedBody.partner) {
       relationshipUpdates.push(
-        FamilyMember.findByIdAndUpdate(req.body.partner, { partner: newMember._id })
+        FamilyMember.findByIdAndUpdate(parsedBody.partner, { partner: newMember._id })
       );
     }
 

@@ -119,7 +119,10 @@ function TreePage() {
       if (created?.id) setFocusedId(created.id);
     } catch (err) {
       console.error('Failed to add member:', err);
-      alert('Failed to add member.');
+      const details = err?.response?.data?.details;
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to add member.';
+      const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
+      alert(detailText ? `${message}\n${detailText}` : message);
     }
   }, [usingFallback, treeId, focusedId]);
 
