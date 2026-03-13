@@ -7,6 +7,7 @@ function HomePage() {
   const navigate = useNavigate();
   const [trees, setTrees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -17,11 +18,14 @@ function HomePage() {
 
   async function loadTrees() {
     setLoading(true);
+    setError('');
     try {
       const data = await fetchAllTrees();
-      setTrees(data);
+      setTrees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load trees:', err);
+      setTrees([]);
+      setError(err?.response?.data?.message || 'Failed to load trees. Check backend URL / CORS / Render service status.');
     } finally {
       setLoading(false);
     }
@@ -79,6 +83,20 @@ function HomePage() {
 
         <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#111', marginBottom: '4px' }}>Your Family Trees</h1>
         <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '24px' }}>Select a tree to explore or create a new one.</p>
+
+        {!!error && (
+          <div style={{
+            marginBottom: '14px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: '1px solid #fecaca',
+            background: '#fef2f2',
+            color: '#991b1b',
+            fontSize: '12px',
+          }}>
+            {error}
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (

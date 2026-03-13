@@ -43,7 +43,10 @@ function toBackend(data) {
 
 export async function fetchAllTrees() {
     const res = await api.get('/api/trees');
-    return res.data || [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    if (Array.isArray(res.data?.trees)) return res.data.trees;
+    return [];
 }
 
 export async function createTree(name, description = '') {
