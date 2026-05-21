@@ -33,6 +33,9 @@ const allowedOrigins = [
   ...(process.env.LOCAL_URLS ? process.env.LOCAL_URLS.split(',') : []),
 ].filter(Boolean);
 
+console.log('🔍 CLIENT_URL env var:', process.env.CLIENT_URL);
+console.log('🔍 Allowed Origins:', allowedOrigins);
+
 const corsOptions = {
   origin: allowedOrigins.length > 0 ? allowedOrigins : ['http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -42,6 +45,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
