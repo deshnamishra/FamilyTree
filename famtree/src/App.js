@@ -9,7 +9,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        {/* <Route path="/tree" element={<TreePage />} /> */}
+        <Route path="/tree" element={<TreePage />} />
          {/* <Route path="/" element={<TreePage />} />  */}
         {/* Legacy route */}
         <Route path="/tree/:treeId" element={<TreePage />} />

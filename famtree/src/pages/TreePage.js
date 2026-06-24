@@ -483,23 +483,650 @@
 // }
 // export default TreePage;
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+// import { motion, AnimatePresence } from 'framer-motion';
+// import { useParams, useNavigate } from 'react-router-dom';
+// import { familyTrees as fallbackData, createFamilyMap } from '../data/familyTrees';
+// import { computeFocusedLayout } from '../components/TreeLayout';
+// import PersonCard from '../components/PersonCard';
+// import ConnectionLines from '../components/ConnectionLines';
+// import AddMemberModal from '../components/AddMemberModal';
+// import EditMemberModal from '../components/EditMemberModal';
+// import { fetchAllMembers, createMember, updateMember, deleteMember, fetchAllTrees } from '../services/api';
+
+// // ── Constants ────────────────────────────────────────────────────────────────
+// const CARD_H = 80;
+// const PADDING_TOP = 60;
+// const PADDING_BOTTOM = 80;
+
+// // ── useWindowSize (replaces useWindowWidth) ──────────────────────────────────
+// function useWindowSize() {
+//   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+//   useEffect(() => {
+//     const handle = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+//     window.addEventListener('resize', handle);
+//     return () => window.removeEventListener('resize', handle);
+//   }, []);
+//   return size;
+// }
+
+// function TreePage() {
+//   const { treeId } = useParams();
+//   const navigate = useNavigate();
+//   const { w: windowWidth } = useWindowSize();
+//   const isMobile = windowWidth < 768;
+//   const CANVAS_W = isMobile ? Math.max(windowWidth * 2, 800) : 1800;
+
+//   // ── Refs ────────────────────────────────────────────────────────────────────
+//   const scrollRef = useRef(null);
+//   const navigateCooldown = useRef(false);
+
+//   // ── State ───────────────────────────────────────────────────────────────────
+//   const [members, setMembers] = useState([]);
+//   const [allTrees, setAllTrees] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState(null);
+//   const [usingFallback, setUsingFallback] = useState(false);
+//   const [sidebarOpen, setSidebarOpen] = useState(false);
+//   const familyMap = useMemo(() => createFamilyMap(members), [members]);
+
+//   const [focusedId, setFocusedId] = useState(null);
+//   const [showModal, setShowModal] = useState(false);
+//   const [showEditModal, setShowEditModal] = useState(false);
+//   const [editingMember, setEditingMember] = useState(null);
+//   const [searchQuery, setSearchQuery] = useState('');
+//   const [searchOpen, setSearchOpen] = useState(false);
+
+//   // ── Hint banner state ───────────────────────────────────────────────────────
+//   const [showUpHint, setShowUpHint] = useState(false);
+//   const [showDownHint, setShowDownHint] = useState(false);
+
+//   // ── Fetch data ──────────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     let cancelled = false;
+//     async function load() {
+//       setLoading(true); setError(null);
+//       try {
+//         const data = await fetchAllMembers(treeId);
+//         if (!cancelled) {
+//           if (data.length > 0) {
+//             setMembers(data); setUsingFallback(false);
+//             const root = data.find(m => !m.parents || m.parents.length === 0) || data[0];
+//             setFocusedId(root.id);
+//           } else {
+//             setMembers([]); setUsingFallback(false); setFocusedId(null);
+//           }
+//         }
+//       } catch (err) {
+//         if (!cancelled) {
+//           if (!treeId) {
+//             setMembers(fallbackData); setUsingFallback(true); setFocusedId('c1');
+//             setError('Backend unavailable — showing demo data');
+//           } else {
+//             setMembers([]); setUsingFallback(false); setError('Failed to load tree data');
+//           }
+//         }
+//       } finally { if (!cancelled) setLoading(false); }
+//     }
+//     load();
+//     return () => { cancelled = true; };
+//   }, [treeId]);
+
+//   useEffect(() => {
+//     let cancelled = false;
+//     async function loadTrees() {
+//       try {
+//         const trees = await fetchAllTrees();
+//         if (!cancelled) setAllTrees(Array.isArray(trees) ? trees : []);
+//       } catch {
+//         if (!cancelled) setAllTrees([]);
+//       }
+//     }
+//     loadTrees();
+//     return () => { cancelled = true; };
+//   }, []);
+
+//   // ── Layout ──────────────────────────────────────────────────────────────────
+//   const layout = useMemo(
+//     () => focusedId ? computeFocusedLayout(focusedId, familyMap, CANVAS_W) : { positions: {}, edges: [], visibleIds: [], parentOfFocused: null },
+//     [focusedId, familyMap, CANVAS_W]
+//   );
+//   const focusedPerson = focusedId ? familyMap.get(focusedId) : null;
+
+//   // ── First child of focused person ───────────────────────────────────────────
+//   const firstChildOfFocused = focusedPerson?.children?.[0] ?? null;
+
+//   // ── Canvas dimensions ───────────────────────────────────────────────────────
+//   const rows = Object.values(layout.positions);
+//   const maxY = rows.length > 0 ? Math.max(...rows.map(p => p.y)) : 0;
+//   const canvasH = maxY + CARD_H + PADDING_BOTTOM;
+
+//   // ── Navigate up (to parent) ─────────────────────────────────────────────────
+//   const navigateUp = useCallback(() => {
+//     if (layout.parentOfFocused) {
+//       setFocusedId(layout.parentOfFocused);
+//       requestAnimationFrame(() => {
+//         if (scrollRef.current) scrollRef.current.scrollTop = 0;
+//       });
+//     }
+//   }, [layout.parentOfFocused]);
+
+//   // ── Navigate down (to first child) ─────────────────────────────────────────
+//   const navigateDown = useCallback(() => {
+//     if (firstChildOfFocused) {
+//       setFocusedId(firstChildOfFocused);
+//       requestAnimationFrame(() => {
+//         if (scrollRef.current) scrollRef.current.scrollTop = 0;
+//       });
+//     }
+//   }, [firstChildOfFocused]);
+
+//   // ── Wheel-based navigation ──────────────────────────────────────────────────
+//   useEffect(() => {
+//     const el = scrollRef.current;
+//     if (!el) return;
+
+//     const handleWheel = (e) => {
+//       const atTop = el.scrollTop === 0;
+//       const atBottom = Math.abs(el.scrollTop + el.clientHeight - el.scrollHeight) < 2;
+
+//       if (atTop && e.deltaY < 0 && layout.parentOfFocused) {
+//         if (navigateCooldown.current) return;
+//         navigateCooldown.current = true;
+//         navigateUp();
+//         setTimeout(() => { navigateCooldown.current = false; }, 900);
+//       } else if (atBottom && e.deltaY > 0 && firstChildOfFocused) {
+//         if (navigateCooldown.current) return;
+//         navigateCooldown.current = true;
+//         navigateDown();
+//         setTimeout(() => { navigateCooldown.current = false; }, 900);
+//       }
+//     };
+
+//     el.addEventListener('wheel', handleWheel, { passive: true });
+//     return () => el.removeEventListener('wheel', handleWheel);
+//   }, [layout.parentOfFocused, firstChildOfFocused, navigateUp, navigateDown]);
+
+//   // ── Hint banners (flash on navigation target change) ───────────────────────
+//   useEffect(() => {
+//     if (layout.parentOfFocused) {
+//       setShowUpHint(true);
+//       const t = setTimeout(() => setShowUpHint(false), 2200);
+//       return () => clearTimeout(t);
+//     }
+//   }, [layout.parentOfFocused]);
+
+//   useEffect(() => {
+//     if (firstChildOfFocused) {
+//       setShowDownHint(true);
+//       const t = setTimeout(() => setShowDownHint(false), 2200);
+//       return () => clearTimeout(t);
+//     }
+//   }, [firstChildOfFocused]);
+
+//   // ── Navigate to a person (handles cross-tree links) ────────────────────────
+//   const navigateTo = useCallback((id) => {
+//     const person = familyMap.get(id);
+//     if (!person) return;
+//     if (person.linkedTreeId && person.linkedTreeId !== treeId) {
+//       navigate(`/tree/${person.linkedTreeId}`);
+//       return;
+//     }
+//     if (id !== focusedId) setFocusedId(id);
+//   }, [focusedId, familyMap, treeId, navigate]);
+
+//   // ── Breadcrumb ──────────────────────────────────────────────────────────────
+//   const breadcrumbPath = useMemo(() => {
+//     if (!focusedId) return [];
+//     const path = []; let cur = focusedId; const visited = new Set();
+//     while (cur && !visited.has(cur)) {
+//       visited.add(cur);
+//       const p = familyMap.get(cur); if (!p) break;
+//       path.unshift({ id: cur, name: p.name });
+//       cur = (p.parents || [])[0] || null;
+//     }
+//     return path;
+//   }, [focusedId, familyMap]);
+
+//   // ── Search ──────────────────────────────────────────────────────────────────
+//   const searchResults = searchQuery.trim()
+//     ? members.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8) : [];
+
+//   // ── CRUD handlers ───────────────────────────────────────────────────────────
+//   const handleAddMember = useCallback(async (data) => {
+//     if (usingFallback) {
+//       const id = 'u_' + Date.now();
+//       const nm = { ...data, id };
+//       setMembers(prev => {
+//         let u = [...prev, nm];
+//         if (nm.spouse) u = u.map(m => m.id === nm.spouse && !m.spouse ? { ...m, spouse: id } : m);
+//         nm.parents.forEach(pid => { u = u.map(m => m.id === pid ? { ...m, children: [...(m.children || []), id] } : m); });
+//         (nm.children || []).forEach(cid => { u = u.map(m => m.id === cid ? { ...m, parents: [...(m.parents || []), id] } : m); });
+//         return u;
+//       });
+//       if (!focusedId) setFocusedId(id);
+//       return;
+//     }
+//     try {
+//       const memberData = { ...data, treeId };
+//       const created = await createMember(memberData);
+//       const refreshed = await fetchAllMembers(treeId);
+//       setMembers(refreshed);
+//       if (created?.id) setFocusedId(created.id);
+//     } catch (err) {
+//       console.error('Failed to add member:', err);
+//       const details = err?.response?.data?.details;
+//       const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to add member.';
+//       const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
+//       alert(detailText ? `${message}\n${detailText}` : message);
+//     }
+//   }, [usingFallback, treeId, focusedId]);
+
+//   const handleUpdateMember = useCallback(async (id, data) => {
+//     if (usingFallback) {
+//       setMembers(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+//       setShowEditModal(false);
+//       return;
+//     }
+//     try {
+//       await updateMember(id, { ...data, treeId });
+//       const refreshed = await fetchAllMembers(treeId);
+//       setMembers(refreshed);
+//       setShowEditModal(false);
+//     } catch (err) {
+//       console.error('Failed to update member:', err);
+//       const details = err?.response?.data?.details;
+//       const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to update member.';
+//       const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
+//       alert(detailText ? `${message}\n${detailText}` : message);
+//     }
+//   }, [usingFallback, treeId]);
+
+//   const handleDeleteMember = useCallback(async (id) => {
+//     const person = familyMap.get(id);
+//     if (!person) return;
+//     const ok = window.confirm(`Delete "${person.name}"? This cannot be undone.`);
+//     if (!ok) return;
+
+//     if (usingFallback) {
+//       setMembers(prev => {
+//         const next = prev
+//           .filter(m => m.id !== id)
+//           .map(m => ({
+//             ...m,
+//             spouse: m.spouse === id ? null : m.spouse,
+//             parents: (m.parents || []).filter(pid => pid !== id),
+//             children: (m.children || []).filter(cid => cid !== id),
+//           }));
+//         if (focusedId === id) {
+//           const fallbackFocus =
+//             next.find(m => (m.parents || []).length === 0)?.id ||
+//             next[0]?.id || null;
+//           setFocusedId(fallbackFocus);
+//         }
+//         return next;
+//       });
+//       setShowEditModal(false);
+//       setEditingMember(null);
+//       return;
+//     }
+
+//     try {
+//       await deleteMember(id);
+//       const refreshed = await fetchAllMembers(treeId);
+//       setMembers(refreshed);
+//       if (focusedId === id) {
+//         const fallbackFocus =
+//           refreshed.find(m => (m.parents || []).length === 0)?.id ||
+//           refreshed[0]?.id || null;
+//         setFocusedId(fallbackFocus);
+//       }
+//       setShowEditModal(false);
+//       setEditingMember(null);
+//     } catch (err) {
+//       console.error('Failed to delete member:', err);
+//       alert('Failed to delete member.');
+//     }
+//   }, [usingFallback, treeId, focusedId, familyMap]);
+
+//   const openEdit = useCallback((person) => {
+//     setEditingMember(person);
+//     setShowEditModal(true);
+//   }, []);
+
+//   // ── Loading ─────────────────────────────────────────────────────────────────
+//   if (loading) {
+//     return (
+//       <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa', fontFamily: "'Inter',sans-serif" }}>
+//         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+//           style={{ width: '36px', height: '36px', border: '3px solid #e5e7eb', borderTopColor: '#2563eb', borderRadius: '50%' }} />
+//       </div>
+//     );
+//   }
+
+//   // ── Empty tree ──────────────────────────────────────────────────────────────
+//   if (members.length === 0 && !usingFallback) {
+//     return (
+//       <div style={{ width: '100vw', height: '100vh', background: '#fafafa', fontFamily: "'Inter',sans-serif", display: 'flex', flexDirection: 'column' }}>
+//         <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+//           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+//             onClick={() => navigate('/')}
+//             style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</motion.button>
+//           <span style={{ fontWeight: 700, fontSize: '15px', color: '#111' }}>🌳 Family Tree</span>
+//         </div>
+//         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+//           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+//             style={{ textAlign: 'center', padding: '40px' }}>
+//             <div style={{ fontSize: '48px', marginBottom: '12px' }}>👤</div>
+//             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#111', marginBottom: '6px' }}>No members yet</h2>
+//             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>Add your first family member to start building.</p>
+//             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+//               onClick={() => setShowModal(true)}
+//               style={{ background: '#2563eb', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, padding: '10px 20px', cursor: 'pointer' }}>
+//               + Add First Member
+//             </motion.button>
+//           </motion.div>
+//         </div>
+//         <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
+//         {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
+//       </div>
+//     );
+//   }
+
+//   // ── Main render ─────────────────────────────────────────────────────────────
+//   return (
+//     <div style={{ width: '100vw', height: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Inter',sans-serif", overflow: 'hidden' }}>
+
+//       {/* ── Header ── */}
+//       <div style={{
+//         background: '#fff', borderBottom: '1px solid #e5e7eb',
+//         padding: isMobile ? '8px 12px' : '0 24px', height: 'auto', minHeight: '52px',
+//         display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 100,
+//         flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '6px' : '0',
+//       }}>
+//         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
+//           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+//             onClick={() => navigate('/')}
+//             style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</motion.button>
+//           <span style={{ fontSize: isMobile ? '16px' : '20px' }}>🌳</span>
+//           <span style={{ fontWeight: 700, fontSize: isMobile ? '13px' : '15px', color: '#111' }}>Family Tree</span>
+//           <span style={{
+//             padding: '2px 8px', borderRadius: '8px', fontSize: '9px', fontWeight: 600,
+//             background: usingFallback ? '#fef3c7' : '#d1fae5',
+//             color: usingFallback ? '#b45309' : '#065f46',
+//           }}>{usingFallback ? 'Demo' : 'Live'}</span>
+//         </div>
+
+//         {/* Desktop search */}
+//         {!isMobile && (
+//           <div style={{ position: 'relative', width: '280px' }}>
+//             <input placeholder="Search members..."
+//               value={searchQuery}
+//               onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+//               onFocus={() => setSearchOpen(true)}
+//               onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+//               style={{ width: '100%', padding: '7px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fafafa', fontSize: '13px', color: '#333', outline: 'none' }}
+//             />
+//             {searchOpen && searchResults.length > 0 && (
+//               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px', border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto' }}>
+//                 {searchResults.map(p => (
+//                   <div key={p.id}
+//                     onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
+//                     style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
+//                     onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+//                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+//                   >
+//                     <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
+//                     {p.occupation && <span style={{ color: '#9ca3af', marginLeft: '8px' }}>{p.occupation}</span>}
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+//           </div>
+//         )}
+
+//         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
+//           {focusedPerson && !isMobile && (
+//             <span style={{ fontSize: '12px', color: '#6b7280' }}>
+//               Viewing: <strong style={{ color: '#111' }}>{focusedPerson.name}</strong>
+//             </span>
+//           )}
+//           {focusedPerson && isMobile && (
+//             <span style={{ fontSize: '10px', color: '#6b7280' }}>
+//               <strong style={{ color: '#111' }}>{focusedPerson.name}</strong>
+//             </span>
+//           )}
+//           {isMobile && (
+//             <motion.button whileTap={{ scale: 0.95 }}
+//               onClick={() => setSidebarOpen(!sidebarOpen)}
+//               style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
+//               ☰
+//             </motion.button>
+//           )}
+//           <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+//             onClick={() => setShowModal(true)}
+//             style={{ background: '#2563eb', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 600, padding: '7px 14px', cursor: 'pointer' }}>
+//             + Add
+//           </motion.button>
+//         </div>
+//       </div>
+
+//       {/* Error banner */}
+//       {error && (
+//         <div style={{ background: '#fef3c7', borderBottom: '1px solid #fde68a', padding: '5px 24px', fontSize: '11px', color: '#92400e', display: 'flex', alignItems: 'center' }}>
+//           ⚠️ {error}
+//           <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#92400e', cursor: 'pointer' }}>✕</button>
+//         </div>
+//       )}
+
+//       {/* Mobile search bar */}
+//       {isMobile && (
+//         <div style={{ padding: '6px 12px', background: '#fff', borderBottom: '1px solid #e5e7eb', position: 'relative' }}>
+//           <input placeholder="Search members..."
+//             value={searchQuery}
+//             onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+//             onFocus={() => setSearchOpen(true)}
+//             onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+//             style={{ width: '100%', padding: '7px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fafafa', fontSize: '13px', color: '#333', outline: 'none' }}
+//           />
+//           {searchOpen && searchResults.length > 0 && (
+//             <div style={{ position: 'absolute', left: '12px', right: '12px', background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px', border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto' }}>
+//               {searchResults.map(p => (
+//                 <div key={p.id}
+//                   onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
+//                   style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
+//                 >
+//                   <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
+//                 </div>
+//               ))}
+//             </div>
+//           )}
+//         </div>
+//       )}
+
+//       {/* ── Main ── */}
+//       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+
+//         {/* ── Tree canvas ── */}
+//         <div
+//           ref={scrollRef}
+//           style={{ flex: 1, overflow: 'auto', position: 'relative', background: '#fafafa', WebkitOverflowScrolling: 'touch' }}
+//         >
+
+//           {/* Scroll-UP hint */}
+//           <AnimatePresence>
+//             {showUpHint && layout.parentOfFocused && (
+//               <motion.div key="hint-up"
+//                 initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+//                 transition={{ duration: 0.25 }}
+//                 style={{ position: 'sticky', top: '8px', zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}
+//               >
+//                 <div style={{
+//                   background: 'rgba(37,99,235,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px',
+//                   fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px',
+//                   boxShadow: '0 2px 12px rgba(37,99,235,0.25)', backdropFilter: 'blur(4px)',
+//                 }}>
+//                   <span style={{ fontSize: '13px' }}>↑</span>
+//                   Scroll up to see {familyMap.get(layout.parentOfFocused)?.name}'s family
+//                 </div>
+//               </motion.div>
+//             )}
+//           </AnimatePresence>
+
+//           {/* Up button */}
+//           {layout.parentOfFocused && (
+//             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+//               style={{ position: 'sticky', top: showUpHint ? '40px' : '10px', zIndex: 49, display: 'flex', justifyContent: 'center' }}
+//             >
+//               <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}
+//                 onClick={navigateUp}
+//                 title={`Go up to ${familyMap.get(layout.parentOfFocused)?.name}`}
+//                 style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fff', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
+//               >▴</motion.button>
+//             </motion.div>
+//           )}
+
+//           {/* Canvas */}
+//           <div style={{
+//             width: `${CANVAS_W}px`,
+//             height: `${canvasH + PADDING_TOP}px`,
+//             position: 'relative',
+//             margin: '0 auto',
+//             paddingTop: `${PADDING_TOP}px`,
+//           }}>
+//             <ConnectionLines edges={layout.edges} positions={layout.positions} familyMap={familyMap} />
+//             <AnimatePresence mode="popLayout">
+//               {layout.visibleIds.map(id => {
+//                 const person = familyMap.get(id);
+//                 const pos = layout.positions[id];
+//                 if (!person || !pos) return null;
+//                 return (
+//                   <PersonCard
+//                     key={id}
+//                     person={person}
+//                     isSelected={id === focusedId}
+//                     onClick={navigateTo}
+//                     onEdit={openEdit}
+//                     isMobile={isMobile}
+//                     style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
+//                   />
+//                 );
+//               })}
+//             </AnimatePresence>
+//           </div>
+
+//           {/* Scroll-DOWN hint + down button */}
+//           {firstChildOfFocused && (
+//             <div style={{
+//               position: 'sticky', bottom: '10px', zIndex: 49,
+//               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+//               pointerEvents: 'none',
+//             }}>
+//               <AnimatePresence>
+//                 {showDownHint && (
+//                   <motion.div key="hint-down"
+//                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
+//                     transition={{ duration: 0.25 }}
+//                     style={{ pointerEvents: 'none' }}
+//                   >
+//                     <div style={{
+//                       background: 'rgba(22,163,74,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px',
+//                       fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px',
+//                       boxShadow: '0 2px 12px rgba(22,163,74,0.25)', backdropFilter: 'blur(4px)',
+//                     }}>
+//                       <span style={{ fontSize: '13px' }}>↓</span>
+//                       Scroll down to see {familyMap.get(firstChildOfFocused)?.name}'s family
+//                     </div>
+//                   </motion.div>
+//                 )}
+//               </AnimatePresence>
+//               <motion.button whileHover={{ y: 2 }} whileTap={{ scale: 0.9 }}
+//                 onClick={navigateDown}
+//                 title={`Go down to ${familyMap.get(firstChildOfFocused)?.name}`}
+//                 style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fff', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', pointerEvents: 'all' }}
+//               >▾</motion.button>
+//             </div>
+//           )}
+//         </div>
+
+//         {/* ── Sidebar ── */}
+//         {(!isMobile || sidebarOpen) && (
+//           <div style={{
+//             width: isMobile ? '240px' : '200px',
+//             flexShrink: 0,
+//             background: '#fff',
+//             borderLeft: '1px solid #e5e7eb',
+//             padding: '16px 14px',
+//             overflowY: 'auto',
+//             ...(isMobile ? {
+//               position: 'absolute', top: 0, right: 0, bottom: 0,
+//               zIndex: 150, boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
+//             } : {}),
+//           }}>
+//             {isMobile && (
+//               <button onClick={() => setSidebarOpen(false)}
+//                 style={{ float: 'right', background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#6b7280', marginBottom: '8px' }}>✕</button>
+//             )}
+//             <h3 style={{ margin: '0 0 14px', fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hierarchy</h3>
+//             {breadcrumbPath.map((item, i) => (
+//               <div key={item.id} style={{ marginBottom: '3px' }}>
+//                 {i > 0 && <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(i - 1) * 10 + 5}px`, height: '12px' }} />}
+//                 <div onClick={() => { navigateTo(item.id); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${i * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+//                   <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: item.id === focusedId ? '#2563eb' : '#d1d5db', flexShrink: 0 }} />
+//                   <span style={{ color: item.id === focusedId ? '#2563eb' : '#6b7280', fontSize: '11px', fontWeight: item.id === focusedId ? 700 : 500 }}>{item.name}</span>
+//                 </div>
+//               </div>
+//             ))}
+//             {(focusedPerson?.children || []).length > 0 && (
+//               <>
+//                 <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(breadcrumbPath.length - 1) * 10 + 5}px`, height: '12px' }} />
+//                 {focusedPerson.children.map(cid => {
+//                   const child = familyMap.get(cid);
+//                   if (!child) return null;
+//                   return (
+//                     <div key={cid} style={{ marginBottom: '3px' }}>
+//                       <div onClick={() => { navigateTo(cid); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${breadcrumbPath.length * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+//                         <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d1d5db', flexShrink: 0 }} />
+//                         <span style={{ color: '#2563eb', fontSize: '10px', fontWeight: 500 }}>{child.name}</span>
+//                       </div>
+//                     </div>
+//                   );
+//                 })}
+//                 <div style={{ marginTop: '12px', padding: '6px', background: '#f9fafb', borderRadius: '6px', textAlign: 'center' }}>
+//                   <span style={{ color: '#6b7280', fontSize: '10px' }}>{focusedPerson.children.length} children</span>
+//                 </div>
+//               </>
+//             )}
+//           </div>
+//         )}
+
+//         {/* Sidebar overlay backdrop on mobile */}
+//         {isMobile && sidebarOpen && (
+//           <div onClick={() => setSidebarOpen(false)}
+//             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 140 }} />
+//         )}
+//       </div>
+
+//       <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
+//       {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
+//     </div>
+//   );
+// }
+
+// export default TreePage;
+
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
-import { familyTrees as fallbackData, createFamilyMap } from '../data/familyTrees';
+import { createFamilyMap, FamilyMember } from '../data/familyData';
+import { familyTrees as fallbackData } from '../data/familyTrees';
 import { computeFocusedLayout } from '../components/TreeLayout';
-import PersonCard from '../components/PersonCard';
 import ConnectionLines from '../components/ConnectionLines';
 import AddMemberModal from '../components/AddMemberModal';
 import EditMemberModal from '../components/EditMemberModal';
 import { fetchAllMembers, createMember, updateMember, deleteMember, fetchAllTrees } from '../services/api';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const CARD_H = 80;
-const PADDING_TOP = 60;
-const PADDING_BOTTOM = 80;
-
-// ── useWindowSize (replaces useWindowWidth) ──────────────────────────────────
+// ── Window size hook ─────────────────────────────────────────────────────────
 function useWindowSize() {
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
@@ -510,38 +1137,198 @@ function useWindowSize() {
   return size;
 }
 
-function TreePage() {
-  const { treeId } = useParams();
-  const navigate = useNavigate();
-  const { w: windowWidth } = useWindowSize();
-  const isMobile = windowWidth < 768;
-  const CANVAS_W = isMobile ? Math.max(windowWidth * 2, 800) : 1800;
+// ── Constants ─────────────────────────────────────────────────────────────────
+const CARD_H         = 80;
+const PADDING_TOP    = 80;
+const PADDING_BOTTOM = 100;
 
-  // ── Refs ────────────────────────────────────────────────────────────────────
-  const scrollRef = useRef(null);
+// ── Gender palette for sphere avatars ─────────────────────────────────────────
+const GENDER_PALETTE = {
+  male:   { a: '#bfdbfe', b: '#3b82f6', c: '#1e3a8a', ring: '#60a5fa' },
+  female: { a: '#fce7f3', b: '#ec4899', c: '#831843', ring: '#f472b6' },
+  other:  { a: '#ede9fe', b: '#8b5cf6', c: '#4c1d95', ring: '#a78bfa' },
+};
+
+// ── AvatarNode — sphere-style person bubble ───────────────────────────────────
+function AvatarNode({
+  person,
+  isFocused,
+  onClick,
+  onEdit,
+  navigateUp,
+  navigateDown,
+  canGoUp,
+  canGoDown,
+  style,
+  floatDelay = 0,
+  isMobile = false,
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  const D   = isFocused ? (isMobile ? 72 : 86) : (isMobile ? 56 : 70);
+  const pal = GENDER_PALETTE[person.gender] ?? GENDER_PALETTE.other;
+  const showUp   = isFocused && hovered && canGoUp;
+  const showDown = isFocused && hovered && canGoDown;
+
+  const sphereStyle = {
+    width: D, height: D,
+    borderRadius: '50%',
+    background: [
+      `radial-gradient(circle at 33% 28%, rgba(255,255,255,0.52) 0%, transparent 46%)`,
+      `radial-gradient(circle at 68% 72%, rgba(0,0,0,0.20) 0%, transparent 52%)`,
+      `radial-gradient(circle at 50% 50%, ${pal.a} 0%, ${pal.b} 45%, ${pal.c} 100%)`,
+    ].join(', '),
+    boxShadow: isFocused
+      ? `0 0 0 3px rgba(255,255,255,0.95), 0 0 0 6px ${pal.ring}88, 0 10px 30px rgba(0,0,0,0.28), inset 0 -6px 12px rgba(0,0,0,0.18)`
+      : `0 6px 20px rgba(0,0,0,0.20), inset 0 -4px 8px rgba(0,0,0,0.15)`,
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+    userSelect: 'none',
+    flexShrink: 0,
+    position: 'relative',
+    transition: 'box-shadow 0.2s, width 0.2s, height 0.2s',
+  };
+
+  const arrowBtnStyle = {
+    width: 26, height: 26,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.92)',
+    border: `1.5px solid ${pal.ring}`,
+    boxShadow: `0 2px 8px rgba(0,0,0,0.15)`,
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '13px', color: pal.c, fontWeight: 700,
+    zIndex: 10, backdropFilter: 'blur(6px)',
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        width: isMobile ? '110px' : '140px',
+        ...style,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Up arrow — focused avatar hover only */}
+      <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <AnimatePresence>
+          {showUp && (
+            <motion.button
+              key="up-arrow"
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              onClick={e => { e.stopPropagation(); navigateUp(); }}
+              style={arrowBtnStyle}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+            >↑</motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Sphere */}
+      <motion.div
+        animate={{ y: [0, isFocused ? -9 : -5, 0] }}
+        transition={{ duration: isFocused ? 2.8 : 3.6 + floatDelay, repeat: Infinity, ease: 'easeInOut', delay: floatDelay }}
+        onClick={() => onClick(person.id)}
+        onDoubleClick={() => onEdit && onEdit(person)}
+        style={sphereStyle}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
+        title={onEdit ? 'Double-click to edit' : undefined}
+      >
+        <svg viewBox="0 0 100 100" width={D} height={D} style={{ position: 'absolute', inset: 0 }} aria-hidden>
+          <circle cx="50" cy="31" r="21" fill="rgba(255,255,255,0.88)" />
+          <path
+            d="M 34 53 Q 33 48 42 45 Q 46 43 50 42.5 Q 54 43 58 45 Q 67 48 66 53
+               Q 75 58 82 67 Q 92 79 93 105 L 7 105 Q 8 79 18 67 Q 25 58 34 53 Z"
+            fill="rgba(255,255,255,0.82)"
+          />
+          <ellipse cx="38" cy="24" rx="9" ry="6" fill="rgba(255,255,255,0.30)" transform="rotate(-25 38 24)" />
+        </svg>
+      </motion.div>
+
+      {/* Name + meta */}
+      <motion.div
+        animate={{ y: [0, isFocused ? -9 : -5, 0] }}
+        transition={{ duration: isFocused ? 2.8 : 3.6 + floatDelay, repeat: Infinity, ease: 'easeInOut', delay: floatDelay }}
+        style={{ marginTop: 7, textAlign: 'center', pointerEvents: 'none' }}
+      >
+        <div style={{
+          fontSize: isFocused ? '12px' : '11px',
+          fontWeight: isFocused ? 700 : 600,
+          color: isFocused ? '#111' : '#374151',
+          whiteSpace: 'nowrap',
+          textShadow: '0 1px 4px rgba(255,255,255,0.9)',
+        }}>{person.name}</div>
+        {person.occupation && (
+          <div style={{ fontSize: '10px', color: '#6b7280', marginTop: 1, whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(255,255,255,0.8)' }}>
+            {person.occupation}
+          </div>
+        )}
+        {person.birthYear && (
+          <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: 1 }}>
+            {person.birthYear}{person.deathYear ? `–${person.deathYear}` : ''}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Down arrow */}
+      <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <AnimatePresence>
+          {showDown && (
+            <motion.button
+              key="down-arrow"
+              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+              onClick={e => { e.stopPropagation(); navigateDown(); }}
+              style={arrowBtnStyle}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+            >↓</motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+// ── TreePage ──────────────────────────────────────────────────────────────────
+export default function TreePage() {
+  const { treeId }    = useParams();
+  const navigate      = useNavigate();
+  const { w: windowW } = useWindowSize();
+  const isMobile      = windowW < 768;
+  const CANVAS_W      = isMobile ? Math.max(windowW * 2, 800) : Math.max(windowW, 600);
+
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const scrollRef        = useRef(null);
   const navigateCooldown = useRef(false);
 
-  // ── State ───────────────────────────────────────────────────────────────────
-  const [members, setMembers] = useState([]);
-  const [allTrees, setAllTrees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [members,       setMembers]       = useState([]);
+  const [allTrees,      setAllTrees]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
   const [usingFallback, setUsingFallback] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const familyMap = useMemo(() => createFamilyMap(members), [members]);
+  const [sidebarOpen,   setSidebarOpen]   = useState(false);
 
-  const [focusedId, setFocusedId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [focusedId,     setFocusedId]     = useState(null);
+  const [showModal,     setShowModal]     = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [searchOpen,    setSearchOpen]    = useState(false);
+  const [showUpHint,    setShowUpHint]    = useState(false);
+  const [showDownHint,  setShowDownHint]  = useState(false);
 
-  // ── Hint banner state ───────────────────────────────────────────────────────
-  const [showUpHint, setShowUpHint] = useState(false);
-  const [showDownHint, setShowDownHint] = useState(false);
+  const familyMap = useMemo(() => createFamilyMap(members), [members]);
 
-  // ── Fetch data ──────────────────────────────────────────────────────────────
+  // ── Fetch members ─────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -557,7 +1344,7 @@ function TreePage() {
             setMembers([]); setUsingFallback(false); setFocusedId(null);
           }
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           if (!treeId) {
             setMembers(fallbackData); setUsingFallback(true); setFocusedId('c1');
@@ -572,64 +1359,68 @@ function TreePage() {
     return () => { cancelled = true; };
   }, [treeId]);
 
+  // ── Fetch all trees (for modals) ──────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     async function loadTrees() {
       try {
         const trees = await fetchAllTrees();
         if (!cancelled) setAllTrees(Array.isArray(trees) ? trees : []);
-      } catch {
-        if (!cancelled) setAllTrees([]);
-      }
+      } catch { if (!cancelled) setAllTrees([]); }
     }
     loadTrees();
     return () => { cancelled = true; };
   }, []);
 
-  // ── Layout ──────────────────────────────────────────────────────────────────
+  // ── Layout ────────────────────────────────────────────────────────────────
   const layout = useMemo(
-    () => focusedId ? computeFocusedLayout(focusedId, familyMap, CANVAS_W) : { positions: {}, edges: [], visibleIds: [], parentOfFocused: null },
-    [focusedId, familyMap, CANVAS_W]
+    () => focusedId
+      ? computeFocusedLayout(focusedId, familyMap, CANVAS_W)
+      : { positions: {}, edges: [], visibleIds: [], parentOfFocused: null },
+    [focusedId, familyMap, CANVAS_W],
   );
-  const focusedPerson = focusedId ? familyMap.get(focusedId) : null;
 
-  // ── First child of focused person ───────────────────────────────────────────
+  const focusedPerson       = focusedId ? familyMap.get(focusedId) ?? null : null;
   const firstChildOfFocused = focusedPerson?.children?.[0] ?? null;
 
-  // ── Canvas dimensions ───────────────────────────────────────────────────────
-  const rows = Object.values(layout.positions);
-  const maxY = rows.length > 0 ? Math.max(...rows.map(p => p.y)) : 0;
+  // ── Canvas dimensions ─────────────────────────────────────────────────────
+  const rows    = Object.values(layout.positions);
+  const maxY    = rows.length > 0 ? Math.max(...rows.map(p => p.y)) : 0;
   const canvasH = maxY + CARD_H + PADDING_BOTTOM;
 
-  // ── Navigate up (to parent) ─────────────────────────────────────────────────
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const navigateTo = useCallback((id) => {
+    const person = familyMap.get(id);
+    if (!person) return;
+    if (person.linkedTreeId && person.linkedTreeId !== treeId) {
+      navigate(`/tree/${person.linkedTreeId}`);
+      return;
+    }
+    if (id !== focusedId) setFocusedId(id);
+    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; });
+  }, [focusedId, familyMap, treeId, navigate]);
+
   const navigateUp = useCallback(() => {
     if (layout.parentOfFocused) {
       setFocusedId(layout.parentOfFocused);
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = 0;
-      });
+      requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; });
     }
   }, [layout.parentOfFocused]);
 
-  // ── Navigate down (to first child) ─────────────────────────────────────────
   const navigateDown = useCallback(() => {
     if (firstChildOfFocused) {
       setFocusedId(firstChildOfFocused);
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = 0;
-      });
+      requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; });
     }
   }, [firstChildOfFocused]);
 
-  // ── Wheel-based navigation ──────────────────────────────────────────────────
+  // ── Wheel-based navigation ────────────────────────────────────────────────
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-
     const handleWheel = (e) => {
-      const atTop = el.scrollTop === 0;
+      const atTop    = el.scrollTop === 0;
       const atBottom = Math.abs(el.scrollTop + el.clientHeight - el.scrollHeight) < 2;
-
       if (atTop && e.deltaY < 0 && layout.parentOfFocused) {
         if (navigateCooldown.current) return;
         navigateCooldown.current = true;
@@ -642,40 +1433,26 @@ function TreePage() {
         setTimeout(() => { navigateCooldown.current = false; }, 900);
       }
     };
-
     el.addEventListener('wheel', handleWheel, { passive: true });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [layout.parentOfFocused, firstChildOfFocused, navigateUp, navigateDown]);
 
-  // ── Hint banners (flash on navigation target change) ───────────────────────
+  // ── Hint banners ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (layout.parentOfFocused) {
-      setShowUpHint(true);
-      const t = setTimeout(() => setShowUpHint(false), 2200);
-      return () => clearTimeout(t);
-    }
+    if (!layout.parentOfFocused) return;
+    setShowUpHint(true);
+    const t = setTimeout(() => setShowUpHint(false), 2200);
+    return () => clearTimeout(t);
   }, [layout.parentOfFocused]);
 
   useEffect(() => {
-    if (firstChildOfFocused) {
-      setShowDownHint(true);
-      const t = setTimeout(() => setShowDownHint(false), 2200);
-      return () => clearTimeout(t);
-    }
+    if (!firstChildOfFocused) return;
+    setShowDownHint(true);
+    const t = setTimeout(() => setShowDownHint(false), 2200);
+    return () => clearTimeout(t);
   }, [firstChildOfFocused]);
 
-  // ── Navigate to a person (handles cross-tree links) ────────────────────────
-  const navigateTo = useCallback((id) => {
-    const person = familyMap.get(id);
-    if (!person) return;
-    if (person.linkedTreeId && person.linkedTreeId !== treeId) {
-      navigate(`/tree/${person.linkedTreeId}`);
-      return;
-    }
-    if (id !== focusedId) setFocusedId(id);
-  }, [focusedId, familyMap, treeId, navigate]);
-
-  // ── Breadcrumb ──────────────────────────────────────────────────────────────
+  // ── Breadcrumb ────────────────────────────────────────────────────────────
   const breadcrumbPath = useMemo(() => {
     if (!focusedId) return [];
     const path = []; let cur = focusedId; const visited = new Set();
@@ -688,11 +1465,12 @@ function TreePage() {
     return path;
   }, [focusedId, familyMap]);
 
-  // ── Search ──────────────────────────────────────────────────────────────────
+  // ── Search ────────────────────────────────────────────────────────────────
   const searchResults = searchQuery.trim()
-    ? members.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8) : [];
+    ? members.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+    : [];
 
-  // ── CRUD handlers ───────────────────────────────────────────────────────────
+  // ── CRUD handlers ─────────────────────────────────────────────────────────
   const handleAddMember = useCallback(async (data) => {
     if (usingFallback) {
       const id = 'u_' + Date.now();
@@ -708,13 +1486,11 @@ function TreePage() {
       return;
     }
     try {
-      const memberData = { ...data, treeId };
-      const created = await createMember(memberData);
+      const created = await createMember({ ...data, treeId });
       const refreshed = await fetchAllMembers(treeId);
       setMembers(refreshed);
       if (created?.id) setFocusedId(created.id);
     } catch (err) {
-      console.error('Failed to add member:', err);
       const details = err?.response?.data?.details;
       const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to add member.';
       const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
@@ -734,7 +1510,6 @@ function TreePage() {
       setMembers(refreshed);
       setShowEditModal(false);
     } catch (err) {
-      console.error('Failed to update member:', err);
       const details = err?.response?.data?.details;
       const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to update member.';
       const detailText = Array.isArray(details) ? details.join('\n') : (details || '');
@@ -745,8 +1520,7 @@ function TreePage() {
   const handleDeleteMember = useCallback(async (id) => {
     const person = familyMap.get(id);
     if (!person) return;
-    const ok = window.confirm(`Delete "${person.name}"? This cannot be undone.`);
-    if (!ok) return;
+    if (!window.confirm(`Delete "${person.name}"? This cannot be undone.`)) return;
 
     if (usingFallback) {
       setMembers(prev => {
@@ -754,37 +1528,27 @@ function TreePage() {
           .filter(m => m.id !== id)
           .map(m => ({
             ...m,
-            spouse: m.spouse === id ? null : m.spouse,
-            parents: (m.parents || []).filter(pid => pid !== id),
+            spouse:   m.spouse === id ? null : m.spouse,
+            parents:  (m.parents  || []).filter(pid => pid !== id),
             children: (m.children || []).filter(cid => cid !== id),
           }));
         if (focusedId === id) {
-          const fallbackFocus =
-            next.find(m => (m.parents || []).length === 0)?.id ||
-            next[0]?.id || null;
-          setFocusedId(fallbackFocus);
+          setFocusedId(next.find(m => (m.parents || []).length === 0)?.id || next[0]?.id || null);
         }
         return next;
       });
-      setShowEditModal(false);
-      setEditingMember(null);
+      setShowEditModal(false); setEditingMember(null);
       return;
     }
-
     try {
       await deleteMember(id);
       const refreshed = await fetchAllMembers(treeId);
       setMembers(refreshed);
       if (focusedId === id) {
-        const fallbackFocus =
-          refreshed.find(m => (m.parents || []).length === 0)?.id ||
-          refreshed[0]?.id || null;
-        setFocusedId(fallbackFocus);
+        setFocusedId(refreshed.find(m => (m.parents || []).length === 0)?.id || refreshed[0]?.id || null);
       }
-      setShowEditModal(false);
-      setEditingMember(null);
-    } catch (err) {
-      console.error('Failed to delete member:', err);
+      setShowEditModal(false); setEditingMember(null);
+    } catch {
       alert('Failed to delete member.');
     }
   }, [usingFallback, treeId, focusedId, familyMap]);
@@ -794,29 +1558,29 @@ function TreePage() {
     setShowEditModal(true);
   }, []);
 
-  // ── Loading ─────────────────────────────────────────────────────────────────
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa', fontFamily: "'Inter',sans-serif" }}>
-        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
-          style={{ width: '36px', height: '36px', border: '3px solid #e5e7eb', borderTopColor: '#2563eb', borderRadius: '50%' }} />
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(160deg, #dcedf7 0%, #e8f4e8 50%, #f3ede0 100%)', fontFamily: "'Inter', sans-serif" }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+          style={{ width: '36px', height: '36px', border: '3px solid rgba(255,255,255,0.4)', borderTopColor: '#2563eb', borderRadius: '50%' }}
+        />
       </div>
     );
   }
 
-  // ── Empty tree ──────────────────────────────────────────────────────────────
+  // ── Empty tree ────────────────────────────────────────────────────────────
   if (members.length === 0 && !usingFallback) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#fafafa', fontFamily: "'Inter',sans-serif", display: 'flex', flexDirection: 'column' }}>
-        <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/')}
-            style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</motion.button>
+      <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(160deg, #dcedf7 0%, #e8f4e8 50%, #f3ede0 100%)', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: 'rgba(255,255,255,0.80)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <button onClick={() => navigate('/')} style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</button>
           <span style={{ fontWeight: 700, fontSize: '15px', color: '#111' }}>🌳 Family Tree</span>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            style={{ textAlign: 'center', padding: '40px' }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ textAlign: 'center', padding: '40px' }}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>👤</div>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#111', marginBottom: '6px' }}>No members yet</h2>
             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>Add your first family member to start building.</p>
@@ -828,28 +1592,40 @@ function TreePage() {
           </motion.div>
         </div>
         <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
-        {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
       </div>
     );
   }
 
-  // ── Main render ─────────────────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', fontFamily: "'Inter',sans-serif", overflow: 'hidden' }}>
+    <div style={{
+      width: '100vw', height: '100vh',
+      display: 'flex', flexDirection: 'column',
+      fontFamily: "'Inter', sans-serif",
+      background: 'linear-gradient(160deg, #dcedf7 0%, #e8f4e8 50%, #f3ede0 100%)',
+      overflow: 'hidden',
+    }}>
 
       {/* ── Header ── */}
       <div style={{
-        background: '#fff', borderBottom: '1px solid #e5e7eb',
-        padding: isMobile ? '8px 12px' : '0 24px', height: 'auto', minHeight: '52px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 100,
+        background: 'rgba(255,255,255,0.80)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(0,0,0,0.07)',
+        padding: isMobile ? '8px 12px' : '0 24px',
+        minHeight: '52px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0, zIndex: 100,
         flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '6px' : '0',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
-            style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>← Back</motion.button>
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '8px', border: '1.5px solid #d1d5db', background: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: '12px', color: '#374151', fontWeight: 500 }}
+          >← Back</motion.button>
           <span style={{ fontSize: isMobile ? '16px' : '20px' }}>🌳</span>
-          <span style={{ fontWeight: 700, fontSize: isMobile ? '13px' : '15px', color: '#111' }}>Family Tree</span>
+          <span style={{ fontWeight: 700, fontSize: isMobile ? '13px' : '16px', color: '#111' }}>Family Tree</span>
+          {/* Live / Demo badge */}
           <span style={{
             padding: '2px 8px', borderRadius: '8px', fontSize: '9px', fontWeight: 600,
             background: usingFallback ? '#fef3c7' : '#d1fae5',
@@ -860,12 +1636,13 @@ function TreePage() {
         {/* Desktop search */}
         {!isMobile && (
           <div style={{ position: 'relative', width: '280px' }}>
-            <input placeholder="Search members..."
+            <input
+              placeholder="Search members…"
               value={searchQuery}
               onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
               onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
-              style={{ width: '100%', padding: '7px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fafafa', fontSize: '13px', color: '#333', outline: 'none' }}
+              style={{ width: '100%', padding: '7px 14px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.85)', fontSize: '13px', color: '#333', outline: 'none' }}
             />
             {searchOpen && searchResults.length > 0 && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px', border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto' }}>
@@ -899,11 +1676,12 @@ function TreePage() {
           {isMobile && (
             <motion.button whileTap={{ scale: 0.95 }}
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{ background: '#f3f4f6', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #d1d5db', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
               ☰
             </motion.button>
           )}
-          <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+          <motion.button
+            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             onClick={() => setShowModal(true)}
             style={{ background: '#2563eb', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 600, padding: '7px 14px', cursor: 'pointer' }}>
             + Add
@@ -921,21 +1699,21 @@ function TreePage() {
 
       {/* Mobile search bar */}
       {isMobile && (
-        <div style={{ padding: '6px 12px', background: '#fff', borderBottom: '1px solid #e5e7eb', position: 'relative' }}>
-          <input placeholder="Search members..."
+        <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.7)', borderBottom: '1px solid rgba(0,0,0,0.07)', position: 'relative' }}>
+          <input
+            placeholder="Search members…"
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}
             onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
-            style={{ width: '100%', padding: '7px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fafafa', fontSize: '13px', color: '#333', outline: 'none' }}
+            style={{ width: '100%', padding: '7px 12px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.85)', fontSize: '13px', color: '#333', outline: 'none' }}
           />
           {searchOpen && searchResults.length > 0 && (
             <div style={{ position: 'absolute', left: '12px', right: '12px', background: '#fff', borderRadius: '8px', marginTop: '4px', padding: '4px', border: '1px solid #e5e7eb', zIndex: 200, maxHeight: '200px', overflowY: 'auto' }}>
               {searchResults.map(p => (
                 <div key={p.id}
                   onMouseDown={() => { navigateTo(p.id); setSearchQuery(''); setSearchOpen(false); }}
-                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}
-                >
+                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#333' }}>
                   <span style={{ fontWeight: 600, color: '#2563eb' }}>{p.name}</span>
                 </div>
               ))}
@@ -944,15 +1722,14 @@ function TreePage() {
         </div>
       )}
 
-      {/* ── Main ── */}
+      {/* ── Main area ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
         {/* ── Tree canvas ── */}
         <div
           ref={scrollRef}
-          style={{ flex: 1, overflow: 'auto', position: 'relative', background: '#fafafa', WebkitOverflowScrolling: 'touch' }}
+          style={{ flex: 1, overflow: 'auto', position: 'relative', WebkitOverflowScrolling: 'touch' }}
         >
-
           {/* Scroll-UP hint */}
           <AnimatePresence>
             {showUpHint && layout.parentOfFocused && (
@@ -961,11 +1738,7 @@ function TreePage() {
                 transition={{ duration: 0.25 }}
                 style={{ position: 'sticky', top: '8px', zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}
               >
-                <div style={{
-                  background: 'rgba(37,99,235,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px',
-                  fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px',
-                  boxShadow: '0 2px 12px rgba(37,99,235,0.25)', backdropFilter: 'blur(4px)',
-                }}>
+                <div style={{ background: 'rgba(37,99,235,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px', fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 12px rgba(37,99,235,0.25)', backdropFilter: 'blur(4px)' }}>
                   <span style={{ fontSize: '13px' }}>↑</span>
                   Scroll up to see {familyMap.get(layout.parentOfFocused)?.name}'s family
                 </div>
@@ -973,16 +1746,14 @@ function TreePage() {
             )}
           </AnimatePresence>
 
-          {/* Up button */}
+          {/* Up navigation button */}
           {layout.parentOfFocused && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              style={{ position: 'sticky', top: showUpHint ? '40px' : '10px', zIndex: 49, display: 'flex', justifyContent: 'center' }}
-            >
+              style={{ position: 'sticky', top: showUpHint ? '40px' : '10px', zIndex: 49, display: 'flex', justifyContent: 'center' }}>
               <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}
                 onClick={navigateUp}
                 title={`Go up to ${familyMap.get(layout.parentOfFocused)?.name}`}
-                style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fff', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
-              >▴</motion.button>
+                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', backdropFilter: 'blur(4px)' }}>▴</motion.button>
             </motion.div>
           )}
 
@@ -995,21 +1766,34 @@ function TreePage() {
             paddingTop: `${PADDING_TOP}px`,
           }}>
             <ConnectionLines edges={layout.edges} positions={layout.positions} familyMap={familyMap} />
+
             <AnimatePresence mode="popLayout">
               {layout.visibleIds.map(id => {
                 const person = familyMap.get(id);
-                const pos = layout.positions[id];
+                const pos    = layout.positions[id];
                 if (!person || !pos) return null;
                 return (
-                  <PersonCard
+                  <motion.div
                     key={id}
-                    person={person}
-                    isSelected={id === focusedId}
-                    onClick={navigateTo}
-                    onEdit={openEdit}
-                    isMobile={isMobile}
-                    style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
-                  />
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ duration: 0.25 }}
+                    style={{ position: 'absolute', left: `${pos.x}px`, top: `${pos.y}px` }}
+                  >
+                    <AvatarNode
+                      person={person}
+                      isFocused={id === focusedId}
+                      onClick={navigateTo}
+                      onEdit={openEdit}
+                      navigateUp={navigateUp}
+                      navigateDown={navigateDown}
+                      canGoUp={!!layout.parentOfFocused}
+                      canGoDown={!!firstChildOfFocused}
+                      isMobile={isMobile}
+                      floatDelay={Math.random() * 1.2}
+                    />
+                  </motion.div>
                 );
               })}
             </AnimatePresence>
@@ -1017,23 +1801,14 @@ function TreePage() {
 
           {/* Scroll-DOWN hint + down button */}
           {firstChildOfFocused && (
-            <div style={{
-              position: 'sticky', bottom: '10px', zIndex: 49,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-              pointerEvents: 'none',
-            }}>
+            <div style={{ position: 'sticky', bottom: '10px', zIndex: 49, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
               <AnimatePresence>
                 {showDownHint && (
                   <motion.div key="hint-down"
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.25 }}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    <div style={{
-                      background: 'rgba(22,163,74,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px',
-                      fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px',
-                      boxShadow: '0 2px 12px rgba(22,163,74,0.25)', backdropFilter: 'blur(4px)',
-                    }}>
+                    style={{ pointerEvents: 'none' }}>
+                    <div style={{ background: 'rgba(22,163,74,0.92)', color: '#fff', borderRadius: '20px', padding: '5px 14px', fontSize: '11px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 12px rgba(22,163,74,0.25)', backdropFilter: 'blur(4px)' }}>
                       <span style={{ fontSize: '13px' }}>↓</span>
                       Scroll down to see {familyMap.get(firstChildOfFocused)?.name}'s family
                     </div>
@@ -1043,8 +1818,7 @@ function TreePage() {
               <motion.button whileHover={{ y: 2 }} whileTap={{ scale: 0.9 }}
                 onClick={navigateDown}
                 title={`Go down to ${familyMap.get(firstChildOfFocused)?.name}`}
-                style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fff', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', pointerEvents: 'all' }}
-              >▾</motion.button>
+                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: '1.5px solid #d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#6b7280', boxShadow: '0 1px 4px rgba(0,0,0,0.10)', backdropFilter: 'blur(4px)', pointerEvents: 'all' }}>▾</motion.button>
             </div>
           )}
         </div>
@@ -1054,45 +1828,47 @@ function TreePage() {
           <div style={{
             width: isMobile ? '240px' : '200px',
             flexShrink: 0,
-            background: '#fff',
-            borderLeft: '1px solid #e5e7eb',
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'blur(10px)',
+            borderLeft: '1px solid rgba(0,0,0,0.07)',
             padding: '16px 14px',
             overflowY: 'auto',
-            ...(isMobile ? {
-              position: 'absolute', top: 0, right: 0, bottom: 0,
-              zIndex: 150, boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
-            } : {}),
+            ...(isMobile ? { position: 'absolute', top: 0, right: 0, bottom: 0, zIndex: 150, boxShadow: '-4px 0 20px rgba(0,0,0,0.15)' } : {}),
           }}>
             {isMobile && (
               <button onClick={() => setSidebarOpen(false)}
                 style={{ float: 'right', background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#6b7280', marginBottom: '8px' }}>✕</button>
             )}
             <h3 style={{ margin: '0 0 14px', fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hierarchy</h3>
+
             {breadcrumbPath.map((item, i) => (
               <div key={item.id} style={{ marginBottom: '3px' }}>
-                {i > 0 && <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(i - 1) * 10 + 5}px`, height: '12px' }} />}
-                <div onClick={() => { navigateTo(item.id); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${i * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {i > 0 && <div style={{ borderLeft: '1.5px solid rgba(0,0,0,0.08)', marginLeft: `${(i - 1) * 10 + 5}px`, height: '12px' }} />}
+                <div onClick={() => { navigateTo(item.id); if (isMobile) setSidebarOpen(false); }}
+                  style={{ paddingLeft: `${i * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: item.id === focusedId ? '#2563eb' : '#d1d5db', flexShrink: 0 }} />
                   <span style={{ color: item.id === focusedId ? '#2563eb' : '#6b7280', fontSize: '11px', fontWeight: item.id === focusedId ? 700 : 500 }}>{item.name}</span>
                 </div>
               </div>
             ))}
+
             {(focusedPerson?.children || []).length > 0 && (
               <>
-                <div style={{ borderLeft: '1.5px solid #e5e7eb', marginLeft: `${(breadcrumbPath.length - 1) * 10 + 5}px`, height: '12px' }} />
+                <div style={{ borderLeft: '1.5px solid rgba(0,0,0,0.08)', marginLeft: `${(breadcrumbPath.length - 1) * 10 + 5}px`, height: '12px' }} />
                 {focusedPerson.children.map(cid => {
                   const child = familyMap.get(cid);
                   if (!child) return null;
                   return (
                     <div key={cid} style={{ marginBottom: '3px' }}>
-                      <div onClick={() => { navigateTo(cid); if (isMobile) setSidebarOpen(false); }} style={{ paddingLeft: `${breadcrumbPath.length * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div onClick={() => { navigateTo(cid); if (isMobile) setSidebarOpen(false); }}
+                        style={{ paddingLeft: `${breadcrumbPath.length * 10}px`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d1d5db', flexShrink: 0 }} />
                         <span style={{ color: '#2563eb', fontSize: '10px', fontWeight: 500 }}>{child.name}</span>
                       </div>
                     </div>
                   );
                 })}
-                <div style={{ marginTop: '12px', padding: '6px', background: '#f9fafb', borderRadius: '6px', textAlign: 'center' }}>
+                <div style={{ marginTop: '12px', padding: '6px', background: 'rgba(0,0,0,0.03)', borderRadius: '6px', textAlign: 'center' }}>
                   <span style={{ color: '#6b7280', fontSize: '10px' }}>{focusedPerson.children.length} children</span>
                 </div>
               </>
@@ -1100,17 +1876,34 @@ function TreePage() {
           </div>
         )}
 
-        {/* Sidebar overlay backdrop on mobile */}
+        {/* Sidebar backdrop (mobile) */}
         {isMobile && sidebarOpen && (
           <div onClick={() => setSidebarOpen(false)}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 140 }} />
         )}
       </div>
 
-      <AddMemberModal isOpen={showModal} onClose={() => setShowModal(false)} onAdd={handleAddMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />
-      {editingMember && <EditMemberModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} person={editingMember} allMembers={members} allTrees={allTrees} currentTreeId={treeId} />}
+      {/* ── Modals ── */}
+      <AddMemberModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onAdd={handleAddMember}
+        allMembers={members}
+        allTrees={allTrees}
+        currentTreeId={treeId}
+      />
+      {editingMember && (
+        <EditMemberModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={handleUpdateMember}
+          onDelete={handleDeleteMember}
+          person={editingMember}
+          allMembers={members}
+          allTrees={allTrees}
+          currentTreeId={treeId}
+        />
+      )}
     </div>
   );
 }
-
-export default TreePage;
